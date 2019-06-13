@@ -14,13 +14,13 @@ from math import cos,sin,pi
 filename = "clarky.dat"
 output_filename = "clarky16mm.dat"
 
-# unit cm, doesn't really matter so long we stay consistent
-cord = 20.0
+# unit mm, doesn't really matter so long we stay consistent
+cord = 200.0
 
 # note we do not check if the circle is within the airfoil profile
 # verify with plot
 # (x,y,R), in converted coordinate system
-circle = (0.25*cord,0.5,0.8)
+circle = (50.0,6.0,7.7)
 
 # ---------- End Settings --------
 
@@ -41,7 +41,7 @@ parsed = np.array(parsed)
 
 # roughly distance between two adjacent points, default seem to be too coarse
 # but too fine may lead to problems for formcutter's control
-step = 0.005 * cord
+step = 0.008 * cord
 parsed *= cord
 
 
@@ -49,9 +49,9 @@ angular_step = step/circle[2]
 circle_points = []
 
 # generate datapoints for the circular hole
-for angle in np.linspace(1.5*pi,-0.5*pi,2*pi/angular_step + 1):
+for angle in np.linspace(1.5*pi,-0.5*pi,int(2*pi/angular_step + 1)):
     circle_points.append([cos(angle),sin(angle)])
-circle_points = np.array(circle_points)
+circle_points = circle[2]*np.array(circle_points)
 circle_points[:,0] += circle[0]
 circle_points[:,1] += circle[1]
 
