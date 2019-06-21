@@ -3,10 +3,19 @@
 
 #define EI_ARDUINO_INTERRUPTED_PIN
 #include <EnableInterrupt.h>
+
 #include <Servo.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
+
+#define I2Cclock 400000
+#define I2Cport Wire
+#include <MPU9250.h>
+#define MPU9250_ADDRESS MPU9250_ADDRESS_AD0 // AD0 on MPU9250 pulled down to GND
+
+// MPU9250 init sets Wire I2c freq(adxl345 does not), let it run first
+MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 
 Adafruit_ADXL345_Unified accel_in = Adafruit_ADXL345_Unified(1);
 Adafruit_ADXL345_Unified accel_out = Adafruit_ADXL345_Unified(2);
@@ -151,6 +160,8 @@ void rc_in_callback(){
 }
 
 void setup() {
+
+  
   Serial.begin(57600);
   while (!Serial);
   
@@ -162,6 +173,109 @@ void setup() {
   flap.attach(8);
   esc.attach(9);
 
+// ---------------- MPU9240 init ---------------
+  Wire.begin();
+  // Read the WHO_AM_I register, this is a good test of communication
+  byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
+  Serial.print(F("MPU9250 I AM 0x"));
+  Serial.print(c, HEX);
+  Serial.print(F(" I should be 0x"));
+  Serial.println(0x71, HEX);
+
+  if (c == 0x71) // WHO_AM_I should always be 0x71
+  {
+    Serial.println(F("MPU9250 is online..."));
+
+    // Start by performing self test and reporting values
+    myIMU.MPU9250SelfTest(myIMU.selfTest);
+    Serial.print(F("x-axis self test: acceleration trim within : "));
+    Serial.print(myIMU.selfTest[0],1); Serial.println("% of factory value");
+    Serial.print(F("y-axis self test: acceleration trim within : "));
+    Serial.print(myIMU.selfTest[1],1); Serial.println("% of factory value");
+    Serial.print(F("z-axis self test: acceleration trim within : "));
+    Serial.print(myIMU.selfTest[2],1); Serial.println("% of factory value");
+    Serial.print(F("x-axis self test: gyration trim within : "));
+    Serial.print(myIMU.selfTest[3],1); Serial.println("% of factory value");
+    Serial.print(F("y-axis self test: gyration trim within : "));
+    Serial.print(myIMU.selfTest[4],1); Serial.println("% of factory value");
+    Serial.print(F("z-axis self test: gyration trim within : "));
+    Serial.print(myIMU.selfTest[5],1); Serial.println("% of factory value");
+
+    // Calibrate gyro and accelerometers, load biases in bias registers
+    myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
+
+    myIMU.initMPU9250();
+    // Initialize device for active mode read of acclerometer, gyroscope, and
+    // temperature
+    Serial.println("MPU9250 initialized for active data mode....");
+
+    // Read the WHO_AM_I register of the magnetometer, this is a good test of
+    // communication
+    byte d = myIMU.readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);
+    Serial.print("AK8963 ");
+    Serial.print("I AM 0x");
+    Serial.print(d, HEX);
+    Serial.print(" I should be 0x");
+    Serial.println(0x48, HEX);
+
+    if (d != 0x48)
+    {
+      // Communication failed, stop here
+      Serial.println(F("Communication failed, abort!"));
+      Serial.flush();
+      abort();
+    }
+
+    // Get magnetometer calibration from AK8963 ROM
+    myIMU.initAK8963(myIMU.factoryMagCalibration);
+    // Initialize device for active mode read of magnetometer
+    Serial.println("AK8963 initialized for active data mode....");
+
+      //  Serial.println("Calibration values: ");
+      Serial.print("X-Axis factory sensitivity adjustment value ");
+      Serial.println(myIMU.factoryMagCalibration[0], 2);
+      Serial.print("Y-Axis factory sensitivity adjustment value ");
+      Serial.println(myIMU.factoryMagCalibration[1], 2);
+      Serial.print("Z-Axis factory sensitivity adjustment value ");
+      Serial.println(myIMU.factoryMagCalibration[2], 2);
+
+
+    // Get sensor resolutions, only need to do this once
+    myIMU.getAres();
+    myIMU.getGres();
+    myIMU.getMres();
+
+    // The next call delays for 4 seconds, and then records about 15 seconds of
+    // data to calculate bias and scale.
+//    myIMU.magCalMPU9250(myIMU.magBias, myIMU.magScale);
+    Serial.println("AK8963 mag biases (mG)");
+    Serial.println(myIMU.magBias[0]);
+    Serial.println(myIMU.magBias[1]);
+    Serial.println(myIMU.magBias[2]);
+
+    Serial.println("AK8963 mag scale (mG)");
+    Serial.println(myIMU.magScale[0]);
+    Serial.println(myIMU.magScale[1]);
+    Serial.println(myIMU.magScale[2]);
+    
+    Serial.println("Magnetometer:");
+      Serial.print("X-Axis sensitivity adjustment value ");
+      Serial.println(myIMU.factoryMagCalibration[0], 2);
+      Serial.print("Y-Axis sensitivity adjustment value ");
+      Serial.println(myIMU.factoryMagCalibration[1], 2);
+      Serial.print("Z-Axis sensitivity adjustment value ");
+      Serial.println(myIMU.factoryMagCalibration[2], 2);
+  } else
+  {
+    Serial.print("Could not connect to MPU9250: 0x");
+    Serial.println(c, HEX);
+
+    // Communication failed, stop here
+    Serial.println(F("Communication failed, abort!"));
+    Serial.flush();
+    abort();
+  }
+  
 // ---------------- ADXL345 init ----------------
   Serial.println("Accelerometer Init -- inner (0x53)"); Serial.println("");
   /* Initialise the sensor */
@@ -230,6 +344,39 @@ void loop() {
   }
 // block ---- 
 
+//block -- magnetometer update
+  static int mag_update_freq = 10;
+  static unsigned long mag_update_ts = millis();
+  if ( (millis()-mag_update_ts) > (unsigned long) (1000/float(mag_update_freq)) ){
+// If intPin goes high, all data registers have new data
+  // On interrupt, check if data ready interrupt
+  if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
+  {
+
+    myIMU.readMagData(myIMU.magCount);  // Read the x/y/z adc values
+
+    // Calculate the magnetometer values in milliGauss
+    // Include factory calibration per data sheet and user environmental
+    // corrections
+    // Get actual magnetometer value, this depends on scale being set
+    myIMU.mx = (float)myIMU.magCount[0] * myIMU.mRes
+               * myIMU.factoryMagCalibration[0] - myIMU.magBias[0];
+    myIMU.my = (float)myIMU.magCount[1] * myIMU.mRes
+               * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
+    myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
+               * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
+               
+    // Print mag values in degree/sec
+    Serial.print("X-mag field: "); Serial.print(myIMU.mx);
+    Serial.print(" mG ");
+    Serial.print("Y-mag field: "); Serial.print(myIMU.my);
+    Serial.print(" mG ");
+    Serial.print("Z-mag field: "); Serial.print(myIMU.mz);
+    Serial.println(" mG");
+  }
+  }
+//block ----------
+
 //block -- Accelerometer update
   static int accel_update_freq = 10;
   static unsigned long accel_update_ts = millis();
@@ -283,7 +430,5 @@ void loop() {
     }
   }
 // block ---  
-
-  
 
 }
