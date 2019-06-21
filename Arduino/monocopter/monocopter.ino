@@ -24,102 +24,102 @@ void displaySensorDetails(Adafruit_ADXL345_Unified &accel)
 {
   sensor_t sensor;
   accel.getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" m/s^2");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" m/s^2");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" m/s^2");  
-  Serial.println("------------------------------------");
+  Serial.println(F("------------------------------------"));
+  Serial.print  (F("Sensor:       ")); Serial.println(sensor.name);
+  Serial.print  (F("Driver Ver:   ")); Serial.println(sensor.version);
+  Serial.print  (F("Unique ID:    ")); Serial.println(sensor.sensor_id);
+  Serial.print  (F("Max Value:    ")); Serial.print(sensor.max_value); Serial.println(F(" m/s^2"));
+  Serial.print  (F("Min Value:    ")); Serial.print(sensor.min_value); Serial.println(F(" m/s^2"));
+  Serial.print  (F("Resolution:   ")); Serial.print(sensor.resolution); Serial.println(F(" m/s^2"));  
+  Serial.println(F("------------------------------------"));
   Serial.println("");
   delay(500);
 }
 
 void displayDataRate(Adafruit_ADXL345_Unified &accel)
 {
-  Serial.print  ("Data Rate:    "); 
+  Serial.print  (F("Data Rate:    ")); 
   
   switch(accel.getDataRate())
   {
     case ADXL345_DATARATE_3200_HZ:
-      Serial.print  ("3200 "); 
+      Serial.print  (F("3200 ")); 
       break;
     case ADXL345_DATARATE_1600_HZ:
-      Serial.print  ("1600 "); 
+      Serial.print  (F("1600 ")); 
       break;
     case ADXL345_DATARATE_800_HZ:
-      Serial.print  ("800 "); 
+      Serial.print  (F("800 ")); 
       break;
     case ADXL345_DATARATE_400_HZ:
-      Serial.print  ("400 "); 
+      Serial.print  (F("400 ")); 
       break;
     case ADXL345_DATARATE_200_HZ:
-      Serial.print  ("200 "); 
+      Serial.print  (F("200 ")); 
       break;
     case ADXL345_DATARATE_100_HZ:
-      Serial.print  ("100 "); 
+      Serial.print  (F("100 ")); 
       break;
     case ADXL345_DATARATE_50_HZ:
-      Serial.print  ("50 "); 
+      Serial.print  (F("50 ")); 
       break;
     case ADXL345_DATARATE_25_HZ:
-      Serial.print  ("25 "); 
+      Serial.print  (F("25 ")); 
       break;
     case ADXL345_DATARATE_12_5_HZ:
-      Serial.print  ("12.5 "); 
+      Serial.print  (F("12.5 ")); 
       break;
     case ADXL345_DATARATE_6_25HZ:
-      Serial.print  ("6.25 "); 
+      Serial.print  (F("6.25 ")); 
       break;
     case ADXL345_DATARATE_3_13_HZ:
-      Serial.print  ("3.13 "); 
+      Serial.print  (F("3.13 ")); 
       break;
     case ADXL345_DATARATE_1_56_HZ:
-      Serial.print  ("1.56 "); 
+      Serial.print  (F("1.56 ")); 
       break;
     case ADXL345_DATARATE_0_78_HZ:
-      Serial.print  ("0.78 "); 
+      Serial.print  (F("0.78 ")); 
       break;
     case ADXL345_DATARATE_0_39_HZ:
-      Serial.print  ("0.39 "); 
+      Serial.print  (F("0.39 ")); 
       break;
     case ADXL345_DATARATE_0_20_HZ:
-      Serial.print  ("0.20 "); 
+      Serial.print  (F("0.20 ")); 
       break;
     case ADXL345_DATARATE_0_10_HZ:
-      Serial.print  ("0.10 "); 
+      Serial.print  (F("0.10 ")); 
       break;
     default:
-      Serial.print  ("???? "); 
+      Serial.print  (F("???? ")); 
       break;
   }  
-  Serial.println(" Hz");  
+  Serial.println(F(" Hz"));  
 }
 
 void displayRange(Adafruit_ADXL345_Unified &accel)
 {
-  Serial.print  ("Range:         +/- "); 
+  Serial.print  (F("Range:         +/- ")); 
   
   switch(accel.getRange())
   {
     case ADXL345_RANGE_16_G:
-      Serial.print  ("16 "); 
+      Serial.print  (F("16 ")); 
       break;
     case ADXL345_RANGE_8_G:
-      Serial.print  ("8 "); 
+      Serial.print  (F("8 ")); 
       break;
     case ADXL345_RANGE_4_G:
-      Serial.print  ("4 "); 
+      Serial.print  (F("4 ")); 
       break;
     case ADXL345_RANGE_2_G:
-      Serial.print  ("2 "); 
+      Serial.print  (F("2 ")); 
       break;
     default:
-      Serial.print  ("?? "); 
+      Serial.print  (F("?? ")); 
       break;
   }  
-  Serial.println(" g");  
+  Serial.println(F(" g"));  
 }
 
 
@@ -189,17 +189,17 @@ void setup() {
     // Start by performing self test and reporting values
     myIMU.MPU9250SelfTest(myIMU.selfTest);
     Serial.print(F("x-axis self test: acceleration trim within : "));
-    Serial.print(myIMU.selfTest[0],1); Serial.println("% of factory value");
+    Serial.print(myIMU.selfTest[0],1); Serial.println(F("% of factory value"));
     Serial.print(F("y-axis self test: acceleration trim within : "));
-    Serial.print(myIMU.selfTest[1],1); Serial.println("% of factory value");
+    Serial.print(myIMU.selfTest[1],1); Serial.println(F("% of factory value"));
     Serial.print(F("z-axis self test: acceleration trim within : "));
-    Serial.print(myIMU.selfTest[2],1); Serial.println("% of factory value");
+    Serial.print(myIMU.selfTest[2],1); Serial.println(F("% of factory value"));
     Serial.print(F("x-axis self test: gyration trim within : "));
-    Serial.print(myIMU.selfTest[3],1); Serial.println("% of factory value");
+    Serial.print(myIMU.selfTest[3],1); Serial.println(F("% of factory value"));
     Serial.print(F("y-axis self test: gyration trim within : "));
-    Serial.print(myIMU.selfTest[4],1); Serial.println("% of factory value");
+    Serial.print(myIMU.selfTest[4],1); Serial.println(F("% of factory value"));
     Serial.print(F("z-axis self test: gyration trim within : "));
-    Serial.print(myIMU.selfTest[5],1); Serial.println("% of factory value");
+    Serial.print(myIMU.selfTest[5],1); Serial.println(F("% of factory value"));
 
     // Calibrate gyro and accelerometers, load biases in bias registers
     myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
@@ -207,15 +207,15 @@ void setup() {
     myIMU.initMPU9250();
     // Initialize device for active mode read of acclerometer, gyroscope, and
     // temperature
-    Serial.println("MPU9250 initialized for active data mode....");
+    Serial.println(F("MPU9250 initialized for active data mode...."));
 
     // Read the WHO_AM_I register of the magnetometer, this is a good test of
     // communication
     byte d = myIMU.readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);
-    Serial.print("AK8963 ");
-    Serial.print("I AM 0x");
+    Serial.print(F("AK8963 "));
+    Serial.print(F("I AM 0x"));
     Serial.print(d, HEX);
-    Serial.print(" I should be 0x");
+    Serial.print(F(" I should be 0x"));
     Serial.println(0x48, HEX);
 
     if (d != 0x48)
@@ -232,11 +232,11 @@ void setup() {
     Serial.println(F("AK8963 initialized for active data mode...."));
 
       //  Serial.println("Calibration values: ");
-      Serial.print("X-Axis factory sensitivity adjustment value ");
+      Serial.print(F("X-Axis factory sensitivity adjustment value "));
       Serial.println(myIMU.factoryMagCalibration[0], 2);
-      Serial.print("Y-Axis factory sensitivity adjustment value ");
+      Serial.print(F("Y-Axis factory sensitivity adjustment value "));
       Serial.println(myIMU.factoryMagCalibration[1], 2);
-      Serial.print("Z-Axis factory sensitivity adjustment value ");
+      Serial.print(F("Z-Axis factory sensitivity adjustment value "));
       Serial.println(myIMU.factoryMagCalibration[2], 2);
 
 
@@ -248,22 +248,22 @@ void setup() {
     // The next call delays for 4 seconds, and then records about 15 seconds of
     // data to calculate bias and scale.
 //    myIMU.magCalMPU9250(myIMU.magBias, myIMU.magScale);
-    Serial.println("AK8963 mag biases (mG)");
+    Serial.println(F("AK8963 mag biases (mG))");
     Serial.println(myIMU.magBias[0]);
     Serial.println(myIMU.magBias[1]);
     Serial.println(myIMU.magBias[2]);
 
-    Serial.println("AK8963 mag scale (mG)");
+    Serial.println(F("AK8963 mag scale (mG))");
     Serial.println(myIMU.magScale[0]);
     Serial.println(myIMU.magScale[1]);
     Serial.println(myIMU.magScale[2]);
     
-    Serial.println("Magnetometer:");
-      Serial.print("X-Axis sensitivity adjustment value ");
+    Serial.println(F("Magnetometer:"));
+      Serial.print(F("X-Axis sensitivity adjustment value "));
       Serial.println(myIMU.factoryMagCalibration[0], 2);
-      Serial.print("Y-Axis sensitivity adjustment value ");
+      Serial.print(F("Y-Axis sensitivity adjustment value "));
       Serial.println(myIMU.factoryMagCalibration[1], 2);
-      Serial.print("Z-Axis sensitivity adjustment value ");
+      Serial.print(F("Z-Axis sensitivity adjustment value "));
       Serial.println(myIMU.factoryMagCalibration[2], 2);
   } else
   {
@@ -277,12 +277,12 @@ void setup() {
   }
   
 // ---------------- ADXL345 init ----------------
-  Serial.println("Accelerometer Init -- inner (0x53)"); Serial.println("");
+  Serial.println(F("Accelerometer Init -- inner (0x53))"); Serial.println("");
   /* Initialise the sensor */
   if(!accel_in.begin())
   {
     /* There was a problem detecting the ADXL345 ... check your connections */
-    Serial.println("Inner ADXL345 not detected");
+    Serial.println(F("Inner ADXL345 not detected"));
     while(1);
   }
 
@@ -300,12 +300,12 @@ void setup() {
   displayRange(accel_in);
   Serial.println("");
 // ------ outer ADXL345
-  Serial.println("Accelerometer Init -- outer (0x1D)"); Serial.println("");
+  Serial.println(F("Accelerometer Init -- outer (0x1D))"); Serial.println("");
   /* Initialise the sensor */
   if(!accel_out.begin(0x1D))
   {
     /* There was a problem detecting the ADXL345 ... check your connections */
-    Serial.println("Outer ADXL345 not detected");
+    Serial.println(F("Outer ADXL345 not detected"));
     while(1);
   }
 
@@ -335,11 +335,11 @@ void loop() {
   static unsigned long serial_update_ts = millis();
   if ( (millis()-serial_update_ts) > (unsigned long) (1000/float(serial_update_freq)) ){
     serial_update_ts = millis();
-    Serial.print("RC in : ch0 : ");
+    Serial.print(F("RC in : ch0 : "));
     Serial.print(rc_in_val[0]);
-    Serial.print(" | ch1 : ");
+    Serial.print(F(" | ch1 : "));
     Serial.print(rc_in_val[1]);
-    Serial.print(" | ch2 : ");
+    Serial.print(F(" | ch2 : "));
     Serial.println(rc_in_val[2]);
   }
 // block ---- 
@@ -367,12 +367,12 @@ void loop() {
                * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
                
     // Print mag values in degree/sec
-    Serial.print("X-mag field: "); Serial.print(myIMU.mx);
-    Serial.print(" mG ");
-    Serial.print("Y-mag field: "); Serial.print(myIMU.my);
-    Serial.print(" mG ");
-    Serial.print("Z-mag field: "); Serial.print(myIMU.mz);
-    Serial.println(" mG");
+    Serial.print(F("X-mag field: ")); Serial.print(myIMU.mx);
+    Serial.print(F(" mG "));
+    Serial.print(F("Y-mag field: ")); Serial.print(myIMU.my);
+    Serial.print(F(" mG "));
+    Serial.print(F("Z-mag field: ")); Serial.print(myIMU.mz);
+    Serial.println(F(" mG"));
   }
   }
 //block ----------
@@ -388,9 +388,9 @@ void loop() {
     accel_in.getEvent(&event);
  
     /* Display the results (acceleration is measured in m/s^2) */
-    Serial.print("Innter - X: "); Serial.print(event.acceleration.x); Serial.print("  ");
-    Serial.print("Y: "); Serial.print(event.acceleration.y); Serial.print("  ");
-    Serial.print("Z: "); Serial.print(event.acceleration.z); Serial.print("  ");Serial.print("m/s^2      ");
+    Serial.print(F("Innter - X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
+    Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
+    Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  "));Serial.print(F("m/s^2      "));
 
    // repeat for the outer one
    /* Get a new sensor event */ 
@@ -398,9 +398,9 @@ void loop() {
     accel_out.getEvent(&event);
  
     /* Display the results (acceleration is measured in m/s^2) */
-    Serial.print("outer X: "); Serial.print(event.acceleration.x); Serial.print("  ");
-    Serial.print("Y: "); Serial.print(event.acceleration.y); Serial.print("  ");
-    Serial.print("Z: "); Serial.print(event.acceleration.z); Serial.print("  ");Serial.println("m/s^2 ");
+    Serial.print(F("outer X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
+    Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
+    Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  "));Serial.println(F("m/s^2 "));
   }
 
 //block -- rc out
@@ -423,7 +423,7 @@ void loop() {
     // detect loss of signal (works with FHSS on a channel without fail safe enabled
     unsigned long us_since_last_rc_in = micros()-rc_rising_ts[0];
     if (us_since_last_rc_in > 500000){
-      Serial.print("Signal loss");
+      Serial.print(F("Signal loss"));
       flag_signal_loss = true;
     } else{
       flag_signal_loss = false;
