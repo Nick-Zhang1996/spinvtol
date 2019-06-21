@@ -248,12 +248,12 @@ void setup() {
     // The next call delays for 4 seconds, and then records about 15 seconds of
     // data to calculate bias and scale.
 //    myIMU.magCalMPU9250(myIMU.magBias, myIMU.magScale);
-    Serial.println(F("AK8963 mag biases (mG))");
+    Serial.println(F("AK8963 mag biases (mG)"));
     Serial.println(myIMU.magBias[0]);
     Serial.println(myIMU.magBias[1]);
     Serial.println(myIMU.magBias[2]);
 
-    Serial.println(F("AK8963 mag scale (mG))");
+    Serial.println(F("AK8963 mag scale (mG)"));
     Serial.println(myIMU.magScale[0]);
     Serial.println(myIMU.magScale[1]);
     Serial.println(myIMU.magScale[2]);
@@ -277,7 +277,7 @@ void setup() {
   }
   
 // ---------------- ADXL345 init ----------------
-  Serial.println(F("Accelerometer Init -- inner (0x53))"); Serial.println("");
+  Serial.println(F("Accelerometer Init -- inner (0x53)")); Serial.println("");
   /* Initialise the sensor */
   if(!accel_in.begin())
   {
@@ -300,7 +300,7 @@ void setup() {
   displayRange(accel_in);
   Serial.println("");
 // ------ outer ADXL345
-  Serial.println(F("Accelerometer Init -- outer (0x1D))"); Serial.println("");
+  Serial.println(F("Accelerometer Init -- outer (0x1D)")); Serial.println("");
   /* Initialise the sensor */
   if(!accel_out.begin(0x1D))
   {
@@ -423,7 +423,7 @@ void loop() {
     // detect loss of signal (works with FHSS on a channel without fail safe enabled
     unsigned long us_since_last_rc_in = micros()-rc_rising_ts[0];
     if (us_since_last_rc_in > 500000){
-      Serial.print(F("Signal loss"));
+      Serial.println(F("Signal loss"));
       flag_signal_loss = true;
     } else{
       flag_signal_loss = false;
