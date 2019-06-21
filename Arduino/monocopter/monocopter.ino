@@ -6,6 +6,7 @@
 
 #include <Servo.h>
 #include <Wire.h>
+#include <SerialCommand.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 
@@ -13,6 +14,8 @@
 #define I2Cport Wire
 #include <MPU9250.h>
 #define MPU9250_ADDRESS MPU9250_ADDRESS_AD0 // AD0 on MPU9250 pulled down to GND
+
+SerialCommand sCmd;
 
 // MPU9250 init sets Wire I2c freq(adxl345 does not), let it run first
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
@@ -159,9 +162,49 @@ void rc_in_callback(){
   }
 }
 
-void setup() {
+// --------- Serial command handlers -------
+int onoff(char* arg){
+  if (arg != NULL){
+    if (!strcmp(arg,"on")){
+      return 1;
+    } else if (!strcmp(arg,"off")){
+      return 0;
+    }
+  }
+  return -1;
+}
+void led(){
+  int rval = onoff(sCmd.next());
+  if (rval != -1){
+    digitalWrite(13,rval);
+  }
+}
 
-  
+bool mag_verbose = true;
+void display_mag(){
+  int rval = onoff(sCmd.next());
+  if (rval != -1){
+    mag_verbose = (bool)rval;
+  }
+}
+
+bool acc_verbose = true;
+void display_acc(){
+  int rval = onoff(sCmd.next());
+  if (rval != -1){
+    acc_verbose = (bool)rval;
+  }
+}
+
+bool rc_verbose = true;
+void display_rc(){
+  int rval = onoff(sCmd.next());
+  if (rval != -1){
+    rc_verbose = (bool)rval;
+  }
+}
+
+void setup() {
   Serial.begin(57600);
   while (!Serial);
   
@@ -324,23 +367,29 @@ void setup() {
   Serial.println("");
 // ----------- end ADXL345 init -----------
 
-
-
+// --------  Register serial commands ------
+  sCmd.addCommand("led", led); // test function, takes 1 argument on or off
+  pinMode(13,OUTPUT);
+  sCmd.addCommand("mag", display_mag);
+  sCmd.addCommand("acc", display_acc);
+  sCmd.addCommand("rc", display_rc);
 }
 
 void loop() {
-
+   sCmd.readSerial(); 
 //block -- serial update
   static int serial_update_freq = 10;
   static unsigned long serial_update_ts = millis();
   if ( (millis()-serial_update_ts) > (unsigned long) (1000/float(serial_update_freq)) ){
     serial_update_ts = millis();
-    Serial.print(F("RC in : ch0 : "));
-    Serial.print(rc_in_val[0]);
-    Serial.print(F(" | ch1 : "));
-    Serial.print(rc_in_val[1]);
-    Serial.print(F(" | ch2 : "));
-    Serial.println(rc_in_val[2]);
+    if (rc_verbose){
+      Serial.print(F("RC in : ch0 : "));
+      Serial.print(rc_in_val[0]);
+      Serial.print(F(" | ch1 : "));
+      Serial.print(rc_in_val[1]);
+      Serial.print(F(" | ch2 : "));
+      Serial.println(rc_in_val[2]);
+    }
   }
 // block ---- 
 
@@ -367,12 +416,14 @@ void loop() {
                * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
                
     // Print mag values in degree/sec
-    Serial.print(F("X-mag field: ")); Serial.print(myIMU.mx);
-    Serial.print(F(" mG "));
-    Serial.print(F("Y-mag field: ")); Serial.print(myIMU.my);
-    Serial.print(F(" mG "));
-    Serial.print(F("Z-mag field: ")); Serial.print(myIMU.mz);
-    Serial.println(F(" mG"));
+    if (mag_verbose){
+      Serial.print(F("X-mag field: ")); Serial.print(myIMU.mx);
+      Serial.print(F(" mG "));
+      Serial.print(F("Y-mag field: ")); Serial.print(myIMU.my);
+      Serial.print(F(" mG "));
+      Serial.print(F("Z-mag field: ")); Serial.print(myIMU.mz);
+      Serial.println(F(" mG"));
+    }
   }
   }
 //block ----------
@@ -386,21 +437,23 @@ void loop() {
     /* Get a new sensor event */ 
     sensors_event_t event; 
     accel_in.getEvent(&event);
- 
-    /* Display the results (acceleration is measured in m/s^2) */
-    Serial.print(F("Innter - X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
-    Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
-    Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  "));Serial.print(F("m/s^2      "));
+    if (acc_verbose){
+      /* Display the results (acceleration is measured in m/s^2) */
+      Serial.print(F("Innter - X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
+      Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
+      Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  "));Serial.print(F("m/s^2      "));
+    }
 
    // repeat for the outer one
    /* Get a new sensor event */ 
     //sensors_event_t event; 
     accel_out.getEvent(&event);
- 
-    /* Display the results (acceleration is measured in m/s^2) */
-    Serial.print(F("outer X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
-    Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
-    Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  "));Serial.println(F("m/s^2 "));
+    if (acc_verbose){
+      /* Display the results (acceleration is measured in m/s^2) */
+      Serial.print(F("outer X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
+      Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
+      Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  "));Serial.println(F("m/s^2 "));
+    }
   }
 
 //block -- rc out
