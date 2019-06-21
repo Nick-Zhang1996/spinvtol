@@ -229,7 +229,7 @@ void setup() {
     // Get magnetometer calibration from AK8963 ROM
     myIMU.initAK8963(myIMU.factoryMagCalibration);
     // Initialize device for active mode read of magnetometer
-    Serial.println("AK8963 initialized for active data mode....");
+    Serial.println(F("AK8963 initialized for active data mode...."));
 
       //  Serial.println("Calibration values: ");
       Serial.print("X-Axis factory sensitivity adjustment value ");
@@ -267,7 +267,7 @@ void setup() {
       Serial.println(myIMU.factoryMagCalibration[2], 2);
   } else
   {
-    Serial.print("Could not connect to MPU9250: 0x");
+    Serial.print(F("Could not connect to MPU9250: 0x"));
     Serial.println(c, HEX);
 
     // Communication failed, stop here
