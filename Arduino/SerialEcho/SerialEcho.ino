@@ -29,7 +29,7 @@ int inByte = 0;         // incoming serial byte
 void setup()
 {
   // start serial port at bps:
-  Serial.begin(115200);
+  Serial.begin(38400);
   pinMode(13,OUTPUT);
   pinMode(0,INPUT);
   // disable all pullup function

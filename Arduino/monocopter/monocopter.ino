@@ -168,6 +168,22 @@ void rc_in_callback() {
   }
 }
 
+
+int xbee_rssi_pin = 3;
+volatile unsigned long xbee_rssi_last_rising;
+volatile unsigned long xbee_rssi_val;
+volatile bool xbee_rssi_newdata = false;
+void xbee_rssi_callback() {
+  unsigned long timestamp = micros();
+
+  if (digitalRead(xbee_rssi_pin) == HIGH) {
+    xbee_rssi_last_rising = timestamp;
+  } else {
+   xbee_rssi_val = timestamp - xbee_rssi_last_rising;
+   xbee_rssi_newdata = true;
+
+  }
+}
 // --------- Serial command handlers -------
 int onoff(char* arg) {
   if (arg != NULL) {
@@ -236,14 +252,29 @@ void display_sig() {
   }
 }
 
+bool rssi_verbose = true;
+void display_rssi() {
+  int rval = onoff(sCmd.next());
+  if (rval != -1) {
+    rssi_verbose = (bool)rval;
+  }
+}
+
+void display_all() {
+  int rval = onoff(sCmd.next());
+  if (rval != -1) {
+    rssi_verbose = acc_verbose = mag_verbose = rc_verbose = sig_verbose =  (bool)rval;
+  }
+}
 
 void setup() {
-  Serial.begin(57600);
+  Serial.begin(38400);
   while (!Serial);
 
   for (int i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
     pinMode(rc_in_pinno[i], INPUT);
     enableInterrupt( rc_in_pinno[i], rc_in_callback, CHANGE);
+    enableInterrupt( xbee_rssi_pin, xbee_rssi_callback,CHANGE);
   }
   Serial.println(REFRESH_INTERVAL);
   flap.attach(8);
@@ -417,6 +448,8 @@ void setup() {
   sCmd.addCommand("acc", display_acc);
   sCmd.addCommand("rc", display_rc);
   sCmd.addCommand("sig", display_sig);
+  sCmd.addCommand("rssi", display_rssi);
+  sCmd.addCommand("all", display_all);
 }
 
 void loop() {
@@ -471,7 +504,26 @@ void loop() {
     }
   }
   //block ----------
+  
+ //block -- Xbee rssi update
+  static int rssi_update_freq = 10;
+  static unsigned long rssi_update_ts = millis();
+  if ( (millis() - rssi_update_ts) > (unsigned long) (1000 / float(rssi_update_freq)) ) {
+    if (rssi_verbose){
+      if (xbee_rssi_newdata){
+        Serial.print(F("RSSI : "));
+        Serial.println(xbee_rssi_val);
+        xbee_rssi_newdata = false;
+      } else{
+        Serial.print(F("No RSSI update"));
+      }
+      }
+    }
 
+    
+  }
+
+  
   //block -- Accelerometer update
   static int accel_update_freq = 10;
   static unsigned long accel_update_ts = millis();
