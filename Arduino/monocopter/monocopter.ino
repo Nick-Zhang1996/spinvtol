@@ -515,13 +515,12 @@ void loop() {
         Serial.println(xbee_rssi_val);
         xbee_rssi_newdata = false;
       } else{
-        Serial.print(F("No RSSI update"));
-      }
+        Serial.println(F("No RSSI update"));
       }
     }
+  }
 
     
-  }
 
   
   //block -- Accelerometer update
