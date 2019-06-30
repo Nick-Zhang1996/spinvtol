@@ -18,10 +18,10 @@ float S;
 unsigned long last_update;
 
 // (deg/s^2)^2 stddev^2
-const float acc_variance=33.3;
+const float acc_variance=10.0;
 // observation stddev, deg
-//const float R = 180.0/600;
-const float R = 1.33;
+const float R = 360.0/2400;
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -147,15 +147,16 @@ float azimuth, omega, alpha;
 
 
 unsigned long sim_last_update;
-long offset;
+float offset;
 void loop() {
   // overflow: 24hr over 10rev/s
-  long newPosition = enc.read()-offset;
+  // Warning, numerically unstable
+  long newPosition = (enc.read())/2400.0*360;
   kf_predict();
   kf_update(newPosition);
-  if (x[0][0]>2400){
-      x[0][0] -= 2400;// pulses during 1 revolution
-      offset += 2400;
+  if (x[0][0]>360){
+      x[0][0] -= 360;// pulses during 1 revolution
+      offset += 360;
   }
   
   
@@ -164,11 +165,11 @@ void loop() {
   if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
     update_ts = millis();
     Serial.print("Raw position : ");
-    Serial.print(newPosition/2400.0*360);
+    Serial.print(newPosition);
     Serial.print("(deg) Estimated position : ");
-    Serial.print(x[0][0]/2400.0*360);
+    Serial.print(x[0][0]);
     Serial.print("(deg) Estimated velocity : ");
-    Serial.print(x[1][0]/2400.0);
+    Serial.print(x[1][0]/360.0);
     Serial.println("rev/s");
   }
   
