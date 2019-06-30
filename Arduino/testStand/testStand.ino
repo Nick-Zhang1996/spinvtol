@@ -147,37 +147,40 @@ float azimuth, omega, alpha;
 
 
 unsigned long sim_last_update;
+long offset;
 void loop() {
-  // put your main code here, to run repeatedly:
-  //long newPosition = enc.read();
-  //if (newPosition != oldPosition) {
-  //  oldPosition = newPosition;
-  //  Serial.println(newPosition);
-  //}
-  unsigned long sim_ts = millis();
-  float sim_dt = (sim_ts - sim_last_update)/1000.0;
-  // really the alpha of last frame
-  alpha = random(-100,100)/10.0;
-  azimuth += omega*sim_dt + 0.5*alpha*sim_dt*sim_dt;
-  omega += alpha*sim_dt;
-  sim_last_update = sim_ts;
-  
-//  Serial.println("");
-//  Serial.print("sim_dt : ");
-//  Serial.print(sim_dt);
-//  Serial.print(" alpha : ");
-//  Serial.print(alpha);
-//  Serial.print(" vel : ");
-//  Serial.print(omega);
-//  Serial.print(" angle : ");
-//  Serial.println(azimuth);
+  // overflow: 24hr over 10rev/s
+  long newPosition = enc.read()-offset;
   kf_predict();
-  kf_update(azimuth+random(-200,200)/100.0);
-  Serial.print("theta_err : ");
-  Serial.print(azimuth-x[0][0]);
-  Serial.print("  omega_err : ");
-  Serial.println(omega-x[1][0]);
-
-  delay(100);
+  kf_update(newPosition);
+  if (x[0][0]>2400){
+      x[0][0] -= 2400;// pulses during 1 revolution
+      offset += 2400;
+  }
+  
+  
+  static int update_freq = 10;
+  static unsigned long update_ts = millis();
+  if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
+    update_ts = millis();
+    Serial.print("Raw position : ");
+    Serial.print(newPosition/2400.0*360);
+    Serial.print("(deg) Estimated position : ");
+    Serial.print(x[0][0]/2400.0*360);
+    Serial.print("(deg) Estimated velocity : ");
+    Serial.print(x[1][0]/2400.0);
+    Serial.println("rev/s");
+  }
+  
+  
+  
+// simulation code
+//  unsigned long sim_ts = millis();
+//  float sim_dt = (sim_ts - sim_last_update)/1000.0;
+//  // really the alpha of last frame
+//  alpha = random(-100,100)/10.0;
+//  azimuth += omega*sim_dt + 0.5*alpha*sim_dt*sim_dt;
+//  omega += alpha*sim_dt;
+//  sim_last_update = sim_ts;
 
 }
