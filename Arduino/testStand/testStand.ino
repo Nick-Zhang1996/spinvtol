@@ -8,6 +8,8 @@ typedef mtx_type matrix;
 #define subtract(A,B,m,n,C) Matrix.Subtract((mtx_type*)A, (mtx_type*)B, m, n,  (mtx_type*)C)
 #define transpose(A,m,n,C) Matrix.Transpose((mtx_type*)A, m, n, (mtx_type*)C)
 #define invert(A,m) Matrix.Invert((mtx_type*)A,m)
+#define mtxprint(A,m,n,N) Matrix.Print((mtx_type*)A, m, n, N)
+#define mtxcopy(A,m,n,B) Matrix.Copy((mtx_type*)A, m, n, (mtx_type*)B)
 Encoder enc(2,3);
 
 // actually matrix here logically means type of the elements in a matrix, an array of elements compose a matrix
@@ -16,9 +18,10 @@ float S;
 unsigned long last_update;
 
 // (deg/s^2)^2 stddev^2
-const float acc_variance=0.1;
+const float acc_variance=33.3;
 // observation stddev, deg
-const float R = 180.0/600;
+//const float R = 180.0/600;
+const float R = 1.33;
 
 void setup() {
   // put your setup code here, to run once:
@@ -36,10 +39,12 @@ void setup() {
   H[0][1] = 0;
   // H transpose
   transpose(H,1,2,HT);
+
   
 }
 
-void predict(){
+void kf_predict(){
+  matrix buff_col[2][1],buff_square[2][2];
   unsigned long ts = millis();
   float delta_t = (ts - last_update) / 1000.0;
   last_update = ts;
@@ -49,11 +54,30 @@ void predict(){
   F[1][1] = 1;
   F[0][1] = delta_t;
   // x = Fx + Bu (no control so no Bu here)
-  multiply(F,x,2,2,1,x);
+  
+//  Serial.print("entering = ");
+//  Serial.print("kf_dt : ");
+//  Serial.print(delta_t);
+//  Serial.print(" x : ");
+//  Serial.print(x[0][0]);
+//  Serial.print(" "); 
+//  Serial.println(x[1][0]);
+
+  multiply(F,x,2,2,1,buff_col);
+  mtxcopy(buff_col,2,1,x);
+  
+  //mtxprint(F,2,2,"F");
+  //mtxprint(x,2,1,"x");
+//  Serial.print("prediction -> ");
+//  Serial.print(x[0][0]);
+//  Serial.print(" ");
+//  Serial.println(x[1][0]);
+  //mtxprint(x,2,1,"x");
+
   // P = FPF.T + Q
-  multiply(F,P,2,2,2,P);
+  multiply(F,P,2,2,2,buff_square);
   invert(F,2);
-  multiply(P,F,2,2,2,P);
+  multiply(buff_square,F,2,2,2,P);
   Q[0][0] = 0.25*delta_t*delta_t*delta_t*delta_t*acc_variance;
   Q[0][1] = 0.5*delta_t*delta_t*delta_t*acc_variance;
   Q[1][0] = Q[0][1];
@@ -62,9 +86,9 @@ void predict(){
   return;
 }
 
-void update(float z){
+void kf_update(float z){
   // buffer, one size fits all
-  matrix buff[2][2];
+  matrix buff_single[1][1],buff_row[1][2],buff_col[2][1],buff_square[2][2],buff_square2[2][2];
   matrix I[2][2];
   I[0][0] = 1;
   I[1][1] = 1;  
@@ -73,37 +97,87 @@ void update(float z){
   // y = z - Hx
   H[0][0] = 1;
   H[0][1] = 0;
-  multiply(H,x,1,2,1,buff);
+  multiply(H,x,1,2,1,buff_single);
   matrix y[1][1];
-  y[0][0] = z - buff[0][0];
-
+  y[0][0] = z - buff_single[0][0];
+  // should be observed angle - estimated angle
+  
   // S = HPH.T + R
-  multiply(H,P,1,2,2,buff);
-  multiply(buff,HT,1,2,1,buff);
-  S = buff[0][0] + R;
-  // K = P HT S-1
+  //mtxprint(P,2,2,"P");
+  
+  multiply(H,P,1,2,2,buff_row);
+  multiply(buff_row,HT,1,2,1,buff_single);
+  
+  //mtxprint(buff_single,1,1,"buffer");
+  // covariance of innovation
+  S = buff_single[0][0] + R;
+
+  // K = P HT S-1 ----------------------
   matrix K[2][1];
-  multiply(P,HT,2,2,1,buff); 
-  matrix mat_S[1][1];
-  mat_S[0][0] = S;
-  multiply(buff,mat_S,2,1,1,K);
+  multiply(P,HT,2,2,1,buff_col); 
+  matrix mat_Sinv[1][1];
+  mat_Sinv[0][0] = 1.0/S;
+  multiply(buff_col,mat_Sinv,2,1,1,K);
   // x = x + Ky
-  multiply(K,y,2,1,1,buff);
-  add(x,buff,2,1,x);
+  multiply(K,y,2,1,1,buff_col);
+  add(x,buff_col,2,1,x);
+//  Serial.print("update -> ");
+//  Serial.print(" K ");
+//  Serial.print(K[0][0]);
+//  Serial.print(" ");
+//  Serial.print(K[1][0]);
+//  Serial.print(" x: ");
+//  Serial.print(x[0][0]);
+//  Serial.print(" ");
+//  Serial.println(x[1][0]);
+  
   // P = (I-KH)P
-  multiply(K,H,2,1,2,buff);
-  subtract(I,buff,2,2,buff);
-  multiply(buff,P,2,2,2,P);
+  multiply(K,H,2,1,2,buff_square);
+  subtract(I,buff_square,2,2,buff_square);
+  multiply(buff_square,P,2,2,2,buff_square2);
+  mtxcopy(buff_square,2,2,P);
   // y = z - Hx post fit residual, not needed
   return;
 }
 
 long oldPosition;
+
+//simulation variables:
+float azimuth, omega, alpha;
+
+
+unsigned long sim_last_update;
 void loop() {
   // put your main code here, to run repeatedly:
-  long newPosition = enc.read();
-  if (newPosition != oldPosition) {
-    oldPosition = newPosition;
-    Serial.println(newPosition);
-  }
+  //long newPosition = enc.read();
+  //if (newPosition != oldPosition) {
+  //  oldPosition = newPosition;
+  //  Serial.println(newPosition);
+  //}
+  unsigned long sim_ts = millis();
+  float sim_dt = (sim_ts - sim_last_update)/1000.0;
+  // really the alpha of last frame
+  alpha = random(-100,100)/10.0;
+  azimuth += omega*sim_dt + 0.5*alpha*sim_dt*sim_dt;
+  omega += alpha*sim_dt;
+  sim_last_update = sim_ts;
+  
+//  Serial.println("");
+//  Serial.print("sim_dt : ");
+//  Serial.print(sim_dt);
+//  Serial.print(" alpha : ");
+//  Serial.print(alpha);
+//  Serial.print(" vel : ");
+//  Serial.print(omega);
+//  Serial.print(" angle : ");
+//  Serial.println(azimuth);
+  kf_predict();
+  kf_update(azimuth+random(-200,200)/100.0);
+  Serial.print("theta_err : ");
+  Serial.print(azimuth-x[0][0]);
+  Serial.print("  omega_err : ");
+  Serial.println(omega-x[1][0]);
+
+  delay(100);
+
 }
