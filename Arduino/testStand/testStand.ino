@@ -2,7 +2,6 @@
 // Nick Zhang Summer 2019
 #include <Encoder.h>
 #include <MatrixMath.h>
-#include <EnableInterrupt.h>
 #include <SerialCommand.h>
 
 typedef mtx_type matrix;
@@ -15,7 +14,7 @@ typedef mtx_type matrix;
 #define mtxcopy(A,m,n,B) Matrix.Copy((mtx_type*)A, m, n, (mtx_type*)B)
 Encoder enc(2,3);
 // internally pulled up, down activate, release after use
-const synchro_pinno = 4;
+const int synchro_pinno = 4;
 
 // actually matrix here logically means type of the elements in a matrix, an array of elements compose a matrix
 matrix x[2][1],F[2][2],P[2][2],Q[2][2],H[1][2],HT[2][1];
@@ -32,8 +31,16 @@ SerialCommand sCmd;
 volatile unsigned long epoch;
 // reset offset timeframe, for synchronizing data with other electronics
 void synchronize(){
+  Serial.println(F("Pending Synchronize signal"));
+  if (digitalRead(synchro_pinno)==LOW){
+    Serial.println(F("Error, input pin not in high state, try again when ready"));
+    return;
+  }
+  unsigned long timeout_ts = millis();
+  while (millis()-timeout_ts <10000 && digitalRead(synchro_pinno)==HIGH);
   epoch = millis();
-  Serial.println(F(" Reset timestamp "));
+  Serial.print(F(" Reset timestamp - "));
+  Serial.println(epoch);
 }
 
 
@@ -167,46 +174,54 @@ void setup() {
   // H transpose
   transpose(H,1,2,HT);
   pinMode(synchro_pinno,INPUT_PULLUP);
-  enableInterrupt(synchro_pinno,synchronize,FALLING);
   sCmd.addCommand("h",human);
   sCmd.addCommand("m",machine);
+  sCmd.addCommand("s",synchronize);
 }
 
 
+
 //unsigned long sim_last_update;
-float offset;
+
 void loop() {
   sCmd.readSerial();
   // overflow: 24hr over 10rev/s
   // Warning, numerically unstable
+
   long newPosition = (enc.read())/2400.0*360;
-  timestamp = millis();
+  unsigned long timestamp = millis();
   kf_predict(timestamp);
+
   kf_update(newPosition);
-  if (x[0][0]>360){
-      x[0][0] -= 360;// pulses during 1 revolution
-      offset += 360;
-  }
-  
+
   
   static int update_freq = 10;
   static unsigned long update_ts = millis();
+
   if (human_readable_output){
     if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
-      update_ts = millis();
-      Serial.print("Raw position : ");
-      Serial.print(newPosition);
+      Serial.print(timestamp);
+      Serial.print(": Raw position : ");
+      long offset = (int)newPosition / 360 *360;
+      Serial.print(newPosition-offset);
       Serial.print("(deg) Estimated position : ");
-      Serial.print(x[0][0]);
+      offset = (int)x[0][0] / 360 *360;
+      Serial.print(x[0][0]-offset);
       Serial.print("(deg) Estimated velocity : ");
       Serial.print(x[1][0]/360.0);
       Serial.println("rev/s");
     }
   } else {
-    Serial.print(
+    long offset = (int)newPosition / 360 *360;
+    Serial.print(timestamp-epoch);
+    Serial.print(", ");
+    Serial.print((newPosition-offset),6);
+    Serial.print(", ");
+    // rad/s
+    Serial.println(x[1][0]*2*3.14159265359,6);
   }
   
-  
+  delay(50);
   
 // simulation code
 //  unsigned long sim_ts = millis();
