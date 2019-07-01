@@ -28,7 +28,7 @@ const float R = 360.0/2400;
 
 SerialCommand sCmd;
 
-volatile unsigned long epoch;
+unsigned long epoch;
 // reset offset timeframe, for synchronizing data with other electronics
 void synchronize(){
   Serial.println(F("Pending Synchronize signal"));

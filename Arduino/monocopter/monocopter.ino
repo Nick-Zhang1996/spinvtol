@@ -267,6 +267,26 @@ void display_all() {
   }
 }
 
+
+bool human_readable_output = false;
+void human(){
+  human_readable_output = true;
+}
+
+void machine(){
+  human_readable_output = false;
+}
+
+int synchro_pinno = 9;
+unsigned long epoch;
+// trigger a falling edge on pin, have the other system ready for sync signal
+// to receive such signal, connect pin9 of avionics to pin4 on testStand, also connect both GND
+void synchronize(){
+  Serial.println(F("------Sync ----- "));
+  digitalWrite(synchro_pinno,LOW);
+  epoch = millis();
+}
+
 void setup() {
   Serial.begin(38400);
   while (!Serial);
@@ -439,6 +459,9 @@ void setup() {
   digitalWrite(PIN_LED1,HIGH);
   digitalWrite(PIN_LED2,HIGH);
   digitalWrite(PIN_LED3,HIGH);
+
+  pinMode(synchro_pinno,OUTPUT);
+  digitalWrite(synchro_pinno,HIGH);
  
   sCmd.addCommand("led", led); // test function, takes 1 argument on or off
   sCmd.addCommand("led1", led1); // test function, takes 1 argument on or off
@@ -450,6 +473,9 @@ void setup() {
   sCmd.addCommand("sig", display_sig);
   sCmd.addCommand("rssi", display_rssi);
   sCmd.addCommand("all", display_all);
+  sCmd.addCommand("sync",synchronize);
+  sCmd.addCommand("human",human);
+  sCmd.addCommand("machine",machine);
 }
 
 void loop() {
@@ -459,7 +485,7 @@ void loop() {
   static unsigned long serial_update_ts = millis();
   if ( (millis() - serial_update_ts) > (unsigned long) (1000 / float(serial_update_freq)) ) {
     serial_update_ts = millis();
-    if (rc_verbose) {
+    if (rc_verbose && human_readable_output) {
       Serial.print(F("RC in : ch0 : "));
       Serial.print(rc_in_val[0]);
       Serial.print(F(" | ch1 : "));
@@ -473,35 +499,37 @@ void loop() {
   //block -- magnetometer update
   static int mag_update_freq = 10;
   static unsigned long mag_update_ts = millis();
+  // If intPin goes high, all data registers have new data
+  // On interrupt, check if data ready interrupt
+  if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
+  {
+    myIMU.readMagData(myIMU.magCount);  // Read the x/y/z adc values
+    // Calculate the magnetometer values in milliGauss
+    // Include factory calibration per data sheet and user environmental
+    // corrections
+    // Get actual magnetometer value, this depends on scale being set
+    myIMU.mx = (float)myIMU.magCount[0] * myIMU.mRes
+               * myIMU.factoryMagCalibration[0] - myIMU.magBias[0];
+    myIMU.my = (float)myIMU.magCount[1] * myIMU.mRes
+               * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
+    myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
+               * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
+  }
+  
   if ( (millis() - mag_update_ts) > (unsigned long) (1000 / float(mag_update_freq)) ) {
-    // If intPin goes high, all data registers have new data
-    // On interrupt, check if data ready interrupt
-    if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
-    {
 
-      myIMU.readMagData(myIMU.magCount);  // Read the x/y/z adc values
 
-      // Calculate the magnetometer values in milliGauss
-      // Include factory calibration per data sheet and user environmental
-      // corrections
-      // Get actual magnetometer value, this depends on scale being set
-      myIMU.mx = (float)myIMU.magCount[0] * myIMU.mRes
-                 * myIMU.factoryMagCalibration[0] - myIMU.magBias[0];
-      myIMU.my = (float)myIMU.magCount[1] * myIMU.mRes
-                 * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
-      myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
-                 * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
+
 
       // Print mag values in degree/sec
-      if (mag_verbose) {
+      if (mag_verbose && human_readable_output) {
         Serial.print(F("X-mag field: ")); Serial.print(myIMU.mx);
         Serial.print(F(" mG "));
         Serial.print(F("Y-mag field: ")); Serial.print(myIMU.my);
         Serial.print(F(" mG "));
         Serial.print(F("Z-mag field: ")); Serial.print(myIMU.mz);
         Serial.println(F(" mG"));
-      }
-    }
+      } 
   }
   //block ----------
   
@@ -509,7 +537,7 @@ void loop() {
   static int rssi_update_freq = 10;
   static unsigned long rssi_update_ts = millis();
   if ( (millis() - rssi_update_ts) > (unsigned long) (1000 / float(rssi_update_freq)) ) {
-    if (rssi_verbose){
+    if (rssi_verbose && human_readable_output){
       if (xbee_rssi_newdata){
         Serial.print(F("RSSI : "));
         Serial.println(xbee_rssi_val);
@@ -523,28 +551,31 @@ void loop() {
   //block -- Accelerometer update
   static int accel_update_freq = 10;
   static unsigned long accel_update_ts = millis();
+  /* Get a new sensor event */
+  sensors_event_t event_in;
+  accel_in.getEvent(&event_in);
+
+  // repeat for the outer one
+  /* Get a new sensor event */
+  sensors_event_t event_out;
+  accel_out.getEvent(&event_out);
+  
   if ( (millis() - accel_update_ts) > (unsigned long) (1000 / float(accel_update_freq)) ) {
     accel_update_ts = millis();
 
-    /* Get a new sensor event */
-    sensors_event_t event;
-    accel_in.getEvent(&event);
-    if (acc_verbose) {
+    if (acc_verbose && human_readable_output) {
       /* Display the results (acceleration is measured in m/s^2) */
-      Serial.print(F("Innter - X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
-      Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
-      Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  ")); Serial.print(F("m/s^2      "));
+      Serial.print(F("Innter - X: ")); Serial.print(event_in.acceleration.x); Serial.print(F("  "));
+      Serial.print(F("Y: ")); Serial.print(event_in.acceleration.y); Serial.print(F("  "));
+      Serial.print(F("Z: ")); Serial.print(event_in.acceleration.z); Serial.print(F("  ")); Serial.print(F("m/s^2      "));
     }
 
-    // repeat for the outer one
-    /* Get a new sensor event */
-    //sensors_event_t event;
-    accel_out.getEvent(&event);
-    if (acc_verbose) {
+
+    if (acc_verbose && human_readable_output) {
       /* Display the results (acceleration is measured in m/s^2) */
-      Serial.print(F("outer X: ")); Serial.print(event.acceleration.x); Serial.print(F("  "));
-      Serial.print(F("Y: ")); Serial.print(event.acceleration.y); Serial.print(F("  "));
-      Serial.print(F("Z: ")); Serial.print(event.acceleration.z); Serial.print(F("  ")); Serial.println(F("m/s^2 "));
+      Serial.print(F("outer X: ")); Serial.print(event_out.acceleration.x); Serial.print(F("  "));
+      Serial.print(F("Y: ")); Serial.print(event_out.acceleration.y); Serial.print(F("  "));
+      Serial.print(F("Z: ")); Serial.print(event_out.acceleration.z); Serial.print(F("  ")); Serial.println(F("m/s^2 "));
     }
   }
 
@@ -568,7 +599,7 @@ void loop() {
     // detect loss of signal (works with FHSS on a channel without fail safe enabled
     unsigned long us_since_last_rc_in = micros() - rc_rising_ts[0];
     if (us_since_last_rc_in > 500000) {
-      if (sig_verbose){
+      if (sig_verbose && human_readable_output){
         Serial.println(F("Signal loss"));
       }
       flag_signal_loss = true;
@@ -577,5 +608,29 @@ void loop() {
     }
   }
   // block ---
+
+  // machine readable output
+  if (!human_readable_output){
+    //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
+    Serial.print(myIMU.mx);
+    Serial.print(", ");
+    Serial.print(myIMU.my);
+    Serial.print(", ");
+    Serial.print(myIMU.mz);
+    Serial.print(", ");
+    
+    Serial.print(event_in.acceleration.x);
+    Serial.print(", ");
+    Serial.print(event_in.acceleration.y);
+    Serial.print(", ");
+    Serial.print(event_in.acceleration.z);
+    Serial.print(", ");
+
+    Serial.print(event_out.acceleration.x);
+    Serial.print(", ");
+    Serial.print(event_out.acceleration.y);
+    Serial.print(", ");
+    Serial.println(event_out.acceleration.z);
+  }
 
 }
