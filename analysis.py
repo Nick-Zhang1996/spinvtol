@@ -1,11 +1,13 @@
 # provides some sanity check routine for monocopter design
 import numpy as np
 import scipy.integrate as integrate
-from math import pi
+from math import pi,sqrt
 
 g = 9.81
 # air density
 rho = 1.2
+# kinematic viscosity
+nu = 1.48E-5
 
 def fun_cord(r):
 # design function, give cord length as a function of r
@@ -23,7 +25,7 @@ def samara_cord(r):
         return 0.057
 # THOR, not exactly a monocopter
 def thor_cord(r):
-    return 0.16
+    return 0.16*2
 
 # from paper that use light sensor for state estimate
 def optical_cord(r):
@@ -36,24 +38,50 @@ def optical_cord(r):
 def wire_cord(r):
     return 0.2-0.25*r
 
-def cl(omega,m,cord, R):
+def analyze(omega,m,cord, R):
 # find required lift coeff for given parameters
     C_l = m*g/(0.5*rho*omega**2*integrate.quad(lambda r:r**2*cord(r),0,R)[0])
-    return C_l
+# Renold #
+    Re = omega*R*cord(R/2.0) / nu
+# theoretical power required form momentum theory
+    P = sqrt((m*g)**3/(2*rho*pi*R**2))
+# Disk loading
+    DL = m*g/(pi*R**2)
+# Hover efficiency
+    eta = m/P
+# Tip acceleration
+    acc = omega**2*R/g
+# Rotor solidity
+    rs = integrate.quad(cord, 0, R)[0]/pi/R**2
+    print("---- Analyze case ----")
+    print("C_l = " + "%.2f"%(C_l))
+    print("Mid span Re = %.0f"%Re)
+    print("Disk Loading = " + "%.2f"%(DL))
+    print("Power(min) = "+"%.2f"%(P))
+    print("Hover efficiency (g/w) = "+"%.2f"%(eta*1000)+" ("+"%.3f"%(1/(eta*1000)) +" w/g)")
+    print("Tip acceleration(g) = " + "%.2f"%(acc))
+    print("Tip vel(kph) = " + "%.2f"%(omega*R*3.6))
+    print("Solidity = %.2f"%rs)
+    print("")
+    return 
 
 # from paper Pitch and Heave ..... Evan, Journal of Aircraft
-#print(cl(80.5,0.075,samara_cord,0.27))
+analyze(80.5,0.075,samara_cord,0.27)
 
 # from photo sensor paper
-#print(cl(16.6,1.2,optical_cord,1.0))
-
+analyze(16.6,1.2,optical_cord,1.0)
+#
 # THOR
-#print(cl(38,0.532,thor_cord,0.5)/2)
+#analyze(38,0.532,thor_cord,0.5)
 
-#print(cl(80,0.7,fun_cord,0.4))
+## analyze(omega,m,cord, R):
 
 # fly-by-wire control project
-print(cl(40,0.175,wire_cord,0.4))
+analyze(40,0.175,wire_cord,0.4)
+
+def my_cord(r):
+    return 0.2
+analyze(2*pi*6,0.4,my_cord, 0.45) 
 
 
 
