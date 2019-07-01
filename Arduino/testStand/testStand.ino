@@ -2,6 +2,9 @@
 // Nick Zhang Summer 2019
 #include <Encoder.h>
 #include <MatrixMath.h>
+#include <EnableInterrupt.h>
+#include <SerialCommand.h>
+
 typedef mtx_type matrix;
 #define multiply(A,B,m,n,p,C) Matrix.Multiply((mtx_type*)A, (mtx_type*)B, m, n, p, (mtx_type*)C)
 #define add(A,B,m,n,C) Matrix.Add((mtx_type*)A, (mtx_type*)B, m, n,  (mtx_type*)C)
@@ -11,41 +14,33 @@ typedef mtx_type matrix;
 #define mtxprint(A,m,n,N) Matrix.Print((mtx_type*)A, m, n, N)
 #define mtxcopy(A,m,n,B) Matrix.Copy((mtx_type*)A, m, n, (mtx_type*)B)
 Encoder enc(2,3);
+// internally pulled up, down activate, release after use
+const synchro_pinno = 4;
 
 // actually matrix here logically means type of the elements in a matrix, an array of elements compose a matrix
 matrix x[2][1],F[2][2],P[2][2],Q[2][2],H[1][2],HT[2][1];
 float S;
-unsigned long last_update;
+
 
 // (deg/s^2)^2 stddev^2
 const float acc_variance=10.0;
 // observation stddev, deg
 const float R = 360.0/2400;
 
+SerialCommand sCmd;
 
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(38400);
-  // x = [azimuth angle,angular velocity].T
-  // x = 0
-  
-  // P covariance matrix of state estimation
-  // P = 0
-
-  // F state transition model matrix
-
-  // H observation model
-  H[0][0] = 1;
-  H[0][1] = 0;
-  // H transpose
-  transpose(H,1,2,HT);
-
-  
+volatile unsigned long epoch;
+// reset offset timeframe, for synchronizing data with other electronics
+void synchronize(){
+  epoch = millis();
+  Serial.println(F(" Reset timestamp "));
 }
 
-void kf_predict(){
+
+void kf_predict(  unsigned long ts){
+  static unsigned long last_update = millis();
+  
   matrix buff_col[2][1],buff_square[2][2];
-  unsigned long ts = millis();
   float delta_t = (ts - last_update) / 1000.0;
   last_update = ts;
   // because F.invert is calculated in plate, we need to re-init F each time
@@ -86,6 +81,7 @@ void kf_predict(){
   return;
 }
 
+//z:observation
 void kf_update(float z){
   // buffer, one size fits all
   matrix buff_single[1][1],buff_row[1][2],buff_col[2][1],buff_square[2][2],buff_square2[2][2];
@@ -145,14 +141,47 @@ long oldPosition;
 //simulation variables:
 float azimuth, omega, alpha;
 
+bool human_readable_output = false;
+void human(){
+  human_readable_output = true;
+}
 
-unsigned long sim_last_update;
+void machine(){
+  human_readable_output = false;
+}
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(38400);
+  // x = [azimuth angle,angular velocity].T
+  // x = 0
+  
+  // P covariance matrix of state estimation
+  // P = 0
+
+  // F state transition model matrix
+
+  // H observation model
+  H[0][0] = 1;
+  H[0][1] = 0;
+  // H transpose
+  transpose(H,1,2,HT);
+  pinMode(synchro_pinno,INPUT_PULLUP);
+  enableInterrupt(synchro_pinno,synchronize,FALLING);
+  sCmd.addCommand("h",human);
+  sCmd.addCommand("m",machine);
+}
+
+
+//unsigned long sim_last_update;
 float offset;
 void loop() {
+  sCmd.readSerial();
   // overflow: 24hr over 10rev/s
   // Warning, numerically unstable
   long newPosition = (enc.read())/2400.0*360;
-  kf_predict();
+  timestamp = millis();
+  kf_predict(timestamp);
   kf_update(newPosition);
   if (x[0][0]>360){
       x[0][0] -= 360;// pulses during 1 revolution
@@ -162,15 +191,19 @@ void loop() {
   
   static int update_freq = 10;
   static unsigned long update_ts = millis();
-  if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
-    update_ts = millis();
-    Serial.print("Raw position : ");
-    Serial.print(newPosition);
-    Serial.print("(deg) Estimated position : ");
-    Serial.print(x[0][0]);
-    Serial.print("(deg) Estimated velocity : ");
-    Serial.print(x[1][0]/360.0);
-    Serial.println("rev/s");
+  if (human_readable_output){
+    if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
+      update_ts = millis();
+      Serial.print("Raw position : ");
+      Serial.print(newPosition);
+      Serial.print("(deg) Estimated position : ");
+      Serial.print(x[0][0]);
+      Serial.print("(deg) Estimated velocity : ");
+      Serial.print(x[1][0]/360.0);
+      Serial.println("rev/s");
+    }
+  } else {
+    Serial.print(
   }
   
   

@@ -520,9 +520,6 @@ void loop() {
     }
   }
 
-    
-
-  
   //block -- Accelerometer update
   static int accel_update_freq = 10;
   static unsigned long accel_update_ts = millis();
