@@ -147,33 +147,30 @@ float azimuth, omega, alpha;
 
 
 unsigned long sim_last_update;
-float offset;
 void loop() {
   // overflow: 24hr over 10rev/s
   // Warning, numerically unstable
-  long newPosition = (enc.read())/2400.0*360;
+  double newPosition = (enc.read())/2400.0*360;
   kf_predict();
   kf_update(newPosition);
-  if (x[0][0]>360){
-      x[0][0] -= 360;// pulses during 1 revolution
-      offset += 360;
-  }
-  
+
   
   static int update_freq = 10;
   static unsigned long update_ts = millis();
   if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
     update_ts = millis();
     Serial.print("Raw position : ");
-    Serial.print(newPosition);
+    long offset = (int)newPosition / 360 *360;
+    Serial.print(newPosition-offset);
     Serial.print("(deg) Estimated position : ");
-    Serial.print(x[0][0]);
+    offset = (int)x[0][0] / 360 *360;
+    Serial.print(x[0][0]-offset);
     Serial.print("(deg) Estimated velocity : ");
     Serial.print(x[1][0]/360.0);
     Serial.println("rev/s");
   }
   
-  
+  delay(50);
   
 // simulation code
 //  unsigned long sim_ts = millis();
