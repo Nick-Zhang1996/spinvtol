@@ -38,7 +38,12 @@ void synchronize(){
   }
   unsigned long timeout_ts = millis();
   while (millis()-timeout_ts <10000 && digitalRead(synchro_pinno)==HIGH);
-  epoch = millis();
+  unsigned long temp = millis();
+  if (temp-timeout_ts >=10000){
+    Serial.println(F(" Timeout "));
+    return;
+  }
+  epoch = temp;
   Serial.print(F(" Reset timestamp - "));
   Serial.println(epoch);
 }
@@ -200,7 +205,7 @@ void loop() {
 
   if (human_readable_output){
     if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
-      Serial.print(timestamp);
+      Serial.print(timestamp-epoch);
       Serial.print(": Raw position : ");
       long offset = (int)newPosition / 360 *360;
       Serial.print(newPosition-offset);
