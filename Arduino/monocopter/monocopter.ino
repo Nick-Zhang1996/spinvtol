@@ -285,7 +285,7 @@ void synchronize(){
   digitalWrite(synchro_pinno,LOW);
   epoch = millis();
   Serial.print(F("Syncing ... epoch = "));
-  Serial.println(epoch)
+  Serial.println(epoch);
 }
 
 void setup() {
@@ -620,6 +620,7 @@ void loop() {
     Serial.print('#');
 
     Serial.print(millis()-epoch);
+    Serial.print(", ");
     Serial.print(myIMU.mx,6);
     Serial.print(", ");
     Serial.print(myIMU.my,6);
