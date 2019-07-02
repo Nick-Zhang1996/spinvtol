@@ -282,9 +282,10 @@ unsigned long epoch;
 // trigger a falling edge on pin, have the other system ready for sync signal
 // to receive such signal, connect pin9 of avionics to pin4 on testStand, also connect both GND
 void synchronize(){
-  Serial.println(F("------Sync ----- "));
   digitalWrite(synchro_pinno,LOW);
   epoch = millis();
+  Serial.print(F("Syncing ... epoch = "));
+  Serial.println(epoch)
 }
 
 void setup() {
@@ -617,8 +618,7 @@ void loop() {
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
     Serial.print('#');
-    Serial.print(millis()-epoch);
-    Serial.print(", ");    
+    
     Serial.print(myIMU.mx);
     Serial.print(", ");
     Serial.print(myIMU.my);

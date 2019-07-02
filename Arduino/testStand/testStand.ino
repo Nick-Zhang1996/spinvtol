@@ -31,6 +31,7 @@ SerialCommand sCmd;
 unsigned long epoch;
 // reset offset timeframe, for synchronizing data with other electronics
 void synchronize(){
+  digitalWrite(13,HIGH);
   Serial.println(F("Pending Synchronize signal"));
   if (digitalRead(synchro_pinno)==LOW){
     Serial.println(F("Error, input pin not in high state, try again when ready"));
@@ -41,11 +42,13 @@ void synchronize(){
   unsigned long temp = millis();
   if (temp-timeout_ts >=10000){
     Serial.println(F(" Timeout "));
+    digitalWrite(13,LOW);
     return;
   }
   epoch = temp;
   Serial.print(F(" Reset timestamp - "));
   Serial.println(epoch);
+  digitalWrite(13,LOW);
 }
 
 
@@ -179,6 +182,8 @@ void setup() {
   // H transpose
   transpose(H,1,2,HT);
   pinMode(synchro_pinno,INPUT_PULLUP);
+  pinMode(13,OUTPUT);
+  digitalWrite(13,LOW);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
   sCmd.addCommand("sync",synchronize);
