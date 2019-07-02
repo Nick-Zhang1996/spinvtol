@@ -69,7 +69,7 @@ def main(screen, testStand, avionics):
 
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
-        # a complete message has at least 83 bytes
+        # a complete message has at least 62 bytes
         if (avionics.in_waiting> 90 ):
             line = avionics.readline()
             # machine readable data start with #
@@ -173,7 +173,7 @@ if __name__ == '__main__':
         testStandCommPort = '/dev/tty.wchusbserial1420'
         avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
     with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
-        with serial.Serial(avionicsCommPort,38400, timeout=0.03) as avionics:
+        with serial.Serial(avionicsCommPort,38400, timeout=0.04) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,testStand,avionics)        
