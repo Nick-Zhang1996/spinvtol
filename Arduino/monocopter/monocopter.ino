@@ -478,7 +478,13 @@ void setup() {
   sCmd.addCommand("machine",machine);
 }
 
+
+// --------------------- LOOP ---------------------
+unsigned long loop_ts;
 void loop() {
+  while (millis()-loop_ts < 10); // limit transmission rate to 100Hz
+  loop_ts = millis();
+  
   sCmd.readSerial();
   //block -- serial update
   static int serial_update_freq = 10;
@@ -517,9 +523,6 @@ void loop() {
   }
   
   if ( (millis() - mag_update_ts) > (unsigned long) (1000 / float(mag_update_freq)) ) {
-
-
-
 
       // Print mag values in degree/sec
       if (mag_verbose && human_readable_output) {
@@ -612,6 +615,9 @@ void loop() {
   // machine readable output
   if (!human_readable_output){
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
+    // signify this is a line intended for machine parsing
+    Serial.print('#');
+    
     Serial.print(myIMU.mx);
     Serial.print(", ");
     Serial.print(myIMU.my);
@@ -632,5 +638,6 @@ void loop() {
     Serial.print(", ");
     Serial.println(event_out.acceleration.z);
   }
+  
 
 }

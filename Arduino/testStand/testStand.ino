@@ -187,7 +187,7 @@ void setup() {
 
 
 //unsigned long sim_last_update;
-
+unsigned long loop_ts;
 void loop() {
   sCmd.readSerial();
   // overflow: 24hr over 10rev/s
@@ -219,6 +219,9 @@ void loop() {
   } else {
     // ts, azimuth angle(deg), angular velocity(rad/s)
     long offset = (int)newPosition / 360 *360;
+    while (millis()-loop_ts < 10); // limit transmission rate to 100Hz
+    loop_ts = millis();
+    
     //indicates start of a line for machine reading
     Serial.print("#");
     Serial.print(timestamp-epoch);
@@ -227,9 +230,9 @@ void loop() {
     Serial.print(", ");
     // rad/s
     Serial.println(x[1][0]*2*3.14159265359,6);
+
   }
   
-  delay(50);
   
 // simulation code
 //  unsigned long sim_ts = millis();
