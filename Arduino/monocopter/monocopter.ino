@@ -618,26 +618,27 @@ void loop() {
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
     Serial.print('#');
+
+    Serial.print(millis()-epoch);
+    Serial.print(myIMU.mx,6);
+    Serial.print(", ");
+    Serial.print(myIMU.my,6);
+    Serial.print(", ");
+    Serial.print(myIMU.mz,6);
+    Serial.print(", ");
     
-    Serial.print(myIMU.mx);
+    Serial.print(event_in.acceleration.x,6);
     Serial.print(", ");
-    Serial.print(myIMU.my);
+    Serial.print(event_in.acceleration.y,6);
     Serial.print(", ");
-    Serial.print(myIMU.mz);
-    Serial.print(", ");
-    
-    Serial.print(event_in.acceleration.x);
-    Serial.print(", ");
-    Serial.print(event_in.acceleration.y);
-    Serial.print(", ");
-    Serial.print(event_in.acceleration.z);
+    Serial.print(event_in.acceleration.z,6);
     Serial.print(", ");
 
-    Serial.print(event_out.acceleration.x);
+    Serial.print(event_out.acceleration.x,6);
     Serial.print(", ");
-    Serial.print(event_out.acceleration.y);
+    Serial.print(event_out.acceleration.y,6);
     Serial.print(", ");
-    Serial.println(event_out.acceleration.z);
+    Serial.println(event_out.acceleration.z,6);
   }
   
 
