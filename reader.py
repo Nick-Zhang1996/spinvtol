@@ -6,7 +6,7 @@ import datetime
 import time
 
 
-def main(screen, ser):
+def main(screen, testStand, avionics):
     curses.curs_set(0)                      # Set cursor visibility where 0 = invisible,
     screen.nodelay(True)                    # Set getch() to be non-blocking - important!
     curses.noecho()
@@ -30,8 +30,8 @@ def main(screen, ser):
         #screen.addstr(3, 1, now)
         #screen.refresh()
 
-        # read from serial 
-        line = ser.readline()
+        # read from test stand serial 
+        line = testStand.readline()
         if (len(line)>0):
             # machine readable data start with #
             if (chr(line[0])=='#'):
@@ -58,6 +58,44 @@ def main(screen, ser):
                 screen.addstr(ymax-5,0,"[test stand]: "+line.decode()[:-2])
             screen.refresh()
 
+        # read from avionics serial (thru xbee)
+        line = avionics.readline()
+        if (len(line)>0):
+            # machine readable data start with #
+            if (chr(line[0])=='#'):
+                # display data, remove trailing \r\n which mess up curser
+                screen.move(ymax-4,0)
+                screen.clrtoeol()
+                screen.addstr(ymax-3,0,"Avionics Datastream: "+line.decode()[:-2])
+                # attempt to parse data
+                try:
+                    # sample parsing, need more work TODO
+                    # remove prefix #, suffix \r\n 
+                    data = [float(i) for i in line[1:-2].split(b',')]
+                    if (len(data)==9):
+                        # TODO complete the parsing
+                        ts = data[0]
+                        mx = data[1]
+                        my = data[2] 
+                        mz = data[3] 
+
+                        acc1_x = data[4]
+                        acc1_y = data[5] 
+                        acc1_z = data[6] 
+
+                        acc2_x = data[7]
+                        acc2_y = data[8] 
+                        acc2_z = data[9] 
+                except ValueError:
+                    # this is not a machine readable line, no big deal
+                    pass
+            else:
+                #human readable
+                screen.scroll()
+                # may throw UnicodeDecodeError, not big deal
+                screen.addstr(ymax-5,0,"[avionics]: "+line.decode()[:-2])
+            screen.refresh()
+
         # read user input, store in buffer
         user_input = screen.getch()
         while (user_input != -1):
@@ -78,11 +116,28 @@ def main(screen, ser):
             elif command[:-1] == 'clear':
                 screen.clear()
             else:
+                # command start with single letter 't': intended for teststand
+                # e.g.  "t sync" -> send "sync" to teststand (with additional trailing \r\n)
+                # similarly 'a' for avionics
                 # it's ok to send the trailing \n, default behavior or arduino IDE's serial monitor
-                ser.write(command.encode())
-                screen.move(ymax-2,0)
-                screen.clrtoeol()
-                screen.addstr(ymax-2,0,"Command Sent: "+command)
+                if command[0] == 't':
+                    # test stand
+                    # TODO more elegantly remove t and trailing space
+                    testStand.write(command[2:].encode())
+                    screen.move(ymax-2,0)
+                    screen.clrtoeol()
+                    screen.addstr(ymax-2,0,"Command Sent[test stand]: "+command[2:])
+                elif command[0] == 'a':
+                    # avionics
+                    avionics.write(command[2:].encode())
+                    screen.move(ymax-2,0)
+                    screen.clrtoeol()
+                    screen.addstr(ymax-2,0,"Command Sent[avionics]: "+command[2:])
+                else:
+                    screen.move(ymax-2,0)
+                    screen.clrtoeol()
+                    screen.addstr(ymax-2,0,"Unrecognized command: "+command)
+
                 # clear user input
                 screen.move(ymax-1,0)
                 screen.clrtoeol()
@@ -92,8 +147,9 @@ def main(screen, ser):
 
 
 if __name__ == '__main__':
-    #establish serial comm to teststand
-    with serial.Serial('/dev/ttyUSB0',38400, timeout=0.05) as ser:
-        # TODO check if serial is successfully opened
+    #establish serial comm to teststand and avionics,XXX not sure how to determine order, just plug them in in order...
+    with serial.Serial('/dev/ttyUSB0',38400, timeout=0.05) as testStand:
+        with serial.Serial('/dev/ttyUSB1',38400, timeout=0.05) as avionics:
+            # TODO check if serial is successfully opened
 
-        curses.wrapper(main,ser)        
+            curses.wrapper(main,testStand,avionics)        
