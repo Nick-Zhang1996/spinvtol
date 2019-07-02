@@ -25,14 +25,18 @@ def main(screen, testStand, avionics):
     # line 1: interactive command in buffer
 
     # main loop, print,parse arduino output and send command
+    start_ts = datetime.datetime.now()
+
     while not(quit):
+        screen.addstr(ymax-1,xmax-20,str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
+        start_ts = datetime.datetime.now()
         #now = str(datetime.datetime.now())
         #screen.addstr(3, 1, now)
         #screen.refresh()
 
         # read from test stand serial 
-        line = testStand.readline()
-        if (len(line)>0):
+        if (testStand.in_waiting>20):
+            line = testStand.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
                 # display data, remove trailing \r\n which mess up curser
@@ -56,12 +60,13 @@ def main(screen, testStand, avionics):
                 #human readable
                 screen.scroll()
                 screen.addstr(ymax-5,0,"[test stand]: "+line.decode()[:-2])
-            screen.refresh()
+            #screen.refresh()
 
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
-        line = avionics.readline()
-        if (len(line)>0):
+        # a complete message has at least 83 bytes
+        if (avionics.in_waiting> 83 ):
+            line = avionics.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
                 # display data, remove trailing \r\n which mess up curser
@@ -95,7 +100,7 @@ def main(screen, testStand, avionics):
                 screen.scroll()
                 # may throw UnicodeDecodeError, not big deal
                 screen.addstr(ymax-5,0,"[avionics]: "+line.decode()[:-2])
-            screen.refresh()
+            #screen.refresh()
 
         # read user input, store in buffer
         user_input = screen.getch()
@@ -106,7 +111,7 @@ def main(screen, testStand, avionics):
         # display user typed command TODO add curser, editing
         # currently no backspace allowed
         screen.addstr(ymax-1,0,"Command: "+command)
-        screen.refresh()
+        #screen.refresh()
 
         # process command when return is sent
         # command here includes a trailing \n, remove that before parsing
@@ -145,12 +150,13 @@ def main(screen, testStand, avionics):
                 screen.addstr(ymax-1,0,"Command: ")
                 screen.refresh()
             command = ""
+        screen.refresh()
 
 
 if __name__ == '__main__':
     #establish serial comm to teststand and avionics,XXX not sure how to determine order, just plug them in in order...
-    with serial.Serial('/dev/ttyUSB0',38400, timeout=0.05) as testStand:
-        with serial.Serial('/dev/ttyUSB1',38400, timeout=0.1) as avionics:
+    with serial.Serial('/dev/ttyUSB0',38400, timeout=0.001) as testStand:
+        with serial.Serial('/dev/ttyUSB1',38400, timeout=0.02) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,testStand,avionics)        
