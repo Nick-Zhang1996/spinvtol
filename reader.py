@@ -60,13 +60,17 @@ def main(screen, testStand, avionics):
             else:
                 #human readable
                 screen.scroll()
-                screen.addstr(ymax-5,0,"[test stand]: "+line.decode()[:-2])
+                try:
+                    text = line.decode()[:-2]
+                    screen.addstr(ymax-5,0,"[test stand]: "+text)
+                except UnicodeDecodeError:
+                    pass
             #screen.refresh()
 
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
         # a complete message has at least 83 bytes
-        if (avionics.in_waiting> 83 ):
+        if (avionics.in_waiting> 90 ):
             line = avionics.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
@@ -79,7 +83,7 @@ def main(screen, testStand, avionics):
                     # sample parsing, need more work TODO
                     # remove prefix #, suffix \r\n 
                     data = [float(i) for i in line[1:-2].split(b',')]
-                    if (len(data)==9):
+                    if (len(data)==10):
                         # TODO complete the parsing
                         ts = data[0]
                         mx = data[1]
@@ -100,7 +104,11 @@ def main(screen, testStand, avionics):
                 #human readable
                 screen.scroll()
                 # may throw UnicodeDecodeError, not big deal
-                screen.addstr(ymax-5,0,"[avionics]: "+line.decode()[:-2])
+                try:
+                    text = line.decode()[:-2]
+                    screen.addstr(ymax-5,0,"[avionics]: "+text)
+                except UnicodeDecodeError:
+                    pass
             #screen.refresh()
 
         # read user input, store in buffer
@@ -165,7 +173,7 @@ if __name__ == '__main__':
         testStandCommPort = '/dev/tty.wchusbserial1420'
         avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
     with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
-        with serial.Serial(avionicsCommPort,38400, timeout=0.02) as avionics:
+        with serial.Serial(avionicsCommPort,38400, timeout=0.03) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,testStand,avionics)        
