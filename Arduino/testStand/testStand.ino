@@ -219,6 +219,8 @@ void loop() {
   } else {
     // ts, azimuth angle(deg), angular velocity(rad/s)
     long offset = (int)newPosition / 360 *360;
+    //indicates start of a line for machine reading
+    Serial.print("#");
     Serial.print(timestamp-epoch);
     Serial.print(", ");
     Serial.print((newPosition-offset),6);
