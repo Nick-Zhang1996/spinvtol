@@ -179,9 +179,9 @@ void setup() {
   // H transpose
   transpose(H,1,2,HT);
   pinMode(synchro_pinno,INPUT_PULLUP);
-  sCmd.addCommand("h",human);
-  sCmd.addCommand("m",machine);
-  sCmd.addCommand("s",synchronize);
+  sCmd.addCommand("human",human);
+  sCmd.addCommand("machine",machine);
+  sCmd.addCommand("sync",synchronize);
 }
 
 
@@ -217,6 +217,7 @@ void loop() {
       Serial.println("rev/s");
     }
   } else {
+    // ts, azimuth angle(deg), angular velocity(rad/s)
     long offset = (int)newPosition / 360 *360;
     Serial.print(timestamp-epoch);
     Serial.print(", ");

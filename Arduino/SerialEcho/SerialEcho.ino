@@ -43,7 +43,7 @@ void loop()
     // get incoming byte:
     inByte = Serial.read();
     
-    //Serial.print("character recieved: ");
+    Serial.print("character recieved: ");
     Serial.write(inByte);
     
     if (inByte=='l'){
@@ -53,4 +53,6 @@ void loop()
     }
     
   }
+  Serial.println("noise");
+  delay(10);
 }
