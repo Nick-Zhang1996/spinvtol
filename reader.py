@@ -4,6 +4,7 @@ import curses
 from curses.textpad import Textbox, rectangle
 import datetime
 import time
+import platform
 
 
 def main(screen, testStand, avionics):
@@ -155,8 +156,16 @@ def main(screen, testStand, avionics):
 
 if __name__ == '__main__':
     #establish serial comm to teststand and avionics,XXX not sure how to determine order, just plug them in in order...
-    with serial.Serial('/dev/ttyUSB0',38400, timeout=0.001) as testStand:
-        with serial.Serial('/dev/ttyUSB1',38400, timeout=0.02) as avionics:
+
+    host_system = platform.system()
+    if host_system == "Linux":
+        testStandCommPort = '/dev/ttyUSB0'
+        avionicsCommPort = '/dev/ttyUSB1'
+    elif host_system == "Darwin":
+        testStandCommPort = '/dev/tty.wchusbserial1420'
+        avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
+    with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
+        with serial.Serial(avionicsCommPort,38400, timeout=0.02) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,testStand,avionics)        
