@@ -277,7 +277,7 @@ void machine(){
   human_readable_output = false;
 }
 
-int synchro_pinno = 9;
+int synchro_pinno = A1;
 unsigned long epoch;
 // trigger a falling edge on pin, have the other system ready for sync signal
 // to receive such signal, connect pin9 of avionics to pin4 on testStand, also connect both GND
@@ -286,6 +286,8 @@ void synchronize(){
   epoch = millis();
   Serial.print(F("Syncing ... epoch = "));
   Serial.println(epoch);
+  //delay(1);
+  digitalWrite(synchro_pinno,HIGH);
 }
 
 void setup() {
@@ -483,8 +485,7 @@ void setup() {
 // --------------------- LOOP ---------------------
 unsigned long loop_ts;
 void loop() {
-  while (millis()-loop_ts < 10); // limit transmission rate to 100Hz
-  loop_ts = millis();
+
   
   sCmd.readSerial();
   //block -- serial update
@@ -617,29 +618,32 @@ void loop() {
   if (!human_readable_output){
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
+    while (millis()-loop_ts < 20); // limit transmission rate to 50Hz
+    //Serial.println(millis()-loop_ts);
+    loop_ts = millis();
     Serial.print('#');
 
     Serial.print(millis()-epoch);
-    Serial.print(", ");
-    Serial.print(myIMU.mx,6);
-    Serial.print(", ");
-    Serial.print(myIMU.my,6);
-    Serial.print(", ");
-    Serial.print(myIMU.mz,6);
-    Serial.print(", ");
+    Serial.print(",");
+    Serial.print(myIMU.mx,2);
+    Serial.print(",");
+    Serial.print(myIMU.my,2);
+    Serial.print(",");
+    Serial.print(myIMU.mz,2);
+    Serial.print(",");
     
-    Serial.print(event_in.acceleration.x,6);
-    Serial.print(", ");
-    Serial.print(event_in.acceleration.y,6);
-    Serial.print(", ");
-    Serial.print(event_in.acceleration.z,6);
-    Serial.print(", ");
+    Serial.print(event_in.acceleration.x,2);
+    Serial.print(",");
+    Serial.print(event_in.acceleration.y,2);
+    Serial.print(",");
+    Serial.print(event_in.acceleration.z,2);
+    Serial.print(",");
 
-    Serial.print(event_out.acceleration.x,6);
-    Serial.print(", ");
-    Serial.print(event_out.acceleration.y,6);
-    Serial.print(", ");
-    Serial.println(event_out.acceleration.z,6);
+    Serial.print(event_out.acceleration.x,2);
+    Serial.print(",");
+    Serial.print(event_out.acceleration.y,2);
+    Serial.print(",");
+    Serial.println(event_out.acceleration.z,2);
   }
   
 

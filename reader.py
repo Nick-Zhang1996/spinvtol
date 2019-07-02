@@ -65,12 +65,12 @@ def main(screen, testStand, avionics):
                     screen.addstr(ymax-5,0,"[test stand]: "+text)
                 except UnicodeDecodeError:
                     pass
-            #screen.refresh()
+            screen.refresh()
 
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
         # a complete message has at least 62 bytes
-        if (avionics.in_waiting> 90 ):
+        if (avionics.in_waiting> 70 ):
             line = avionics.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
@@ -109,7 +109,7 @@ def main(screen, testStand, avionics):
                     screen.addstr(ymax-5,0,"[avionics]: "+text)
                 except UnicodeDecodeError:
                     pass
-            #screen.refresh()
+            screen.refresh()
 
         # read user input, store in buffer
         user_input = screen.getch()
@@ -173,7 +173,7 @@ if __name__ == '__main__':
         testStandCommPort = '/dev/tty.wchusbserial1420'
         avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
     with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
-        with serial.Serial(avionicsCommPort,38400, timeout=0.04) as avionics:
+        with serial.Serial(avionicsCommPort,38400, timeout=0.001) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,testStand,avionics)        

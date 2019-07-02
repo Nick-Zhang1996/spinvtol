@@ -35,6 +35,7 @@ void synchronize(){
   Serial.println(F("Pending Synchronize signal"));
   if (digitalRead(synchro_pinno)==LOW){
     Serial.println(F("Error, input pin not in high state, try again when ready"));
+    digitalWrite(13,LOW);
     return;
   }
   unsigned long timeout_ts = millis();
@@ -224,17 +225,17 @@ void loop() {
   } else {
     // ts, azimuth angle(deg), angular velocity(rad/s)
     long offset = (int)newPosition / 360 *360;
-    while (millis()-loop_ts < 10); // limit transmission rate to 100Hz
+    while (millis()-loop_ts < 20); // limit transmission rate to 50Hz
     loop_ts = millis();
     
     //indicates start of a line for machine reading
     Serial.print("#");
     Serial.print(timestamp-epoch);
-    Serial.print(", ");
-    Serial.print((newPosition-offset),6);
-    Serial.print(", ");
+    Serial.print(",");
+    Serial.print((newPosition-offset),2);
+    Serial.print(",");
     // rad/s
-    Serial.println(x[1][0]*2*3.14159265359,6);
+    Serial.println(x[1][0]*2*3.14159265359,2);
 
   }
   
