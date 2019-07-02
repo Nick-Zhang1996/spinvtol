@@ -59,6 +59,7 @@ def main(screen, testStand, avionics):
             screen.refresh()
 
         # read from avionics serial (thru xbee)
+        # BUG XXX: reading too fast
         line = avionics.readline()
         if (len(line)>0):
             # machine readable data start with #
@@ -66,7 +67,7 @@ def main(screen, testStand, avionics):
                 # display data, remove trailing \r\n which mess up curser
                 screen.move(ymax-4,0)
                 screen.clrtoeol()
-                screen.addstr(ymax-3,0,"Avionics Datastream: "+line.decode()[:-2])
+                screen.addstr(ymax-4,0,"Avionics Datastream: "+line.decode()[:-2])
                 # attempt to parse data
                 try:
                     # sample parsing, need more work TODO
@@ -149,7 +150,7 @@ def main(screen, testStand, avionics):
 if __name__ == '__main__':
     #establish serial comm to teststand and avionics,XXX not sure how to determine order, just plug them in in order...
     with serial.Serial('/dev/ttyUSB0',38400, timeout=0.05) as testStand:
-        with serial.Serial('/dev/ttyUSB1',38400, timeout=0.05) as avionics:
+        with serial.Serial('/dev/ttyUSB1',38400, timeout=0.1) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,testStand,avionics)        
