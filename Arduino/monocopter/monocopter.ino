@@ -617,7 +617,8 @@ void loop() {
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
     Serial.print('#');
-    
+    Serial.print(millis()-epoch);
+    Serial.print(", ");    
     Serial.print(myIMU.mx);
     Serial.print(", ");
     Serial.print(myIMU.my);
