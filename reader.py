@@ -2,9 +2,10 @@
 import serial
 import curses
 from curses.textpad import Textbox, rectangle
-import datetime
-import time
-import platform
+import datetime,time,platform
+import numpy as np
+from pyqtgraph.Qt import QtGui, QtCore
+import pyqtgraph as pg
 
 # from bottom, how far up do we display rolling data
 rolling_offset = 10
@@ -166,6 +167,21 @@ def main(screen, testStand, avionics):
             command = ""
         screen.refresh()
 
+        # update plot
+        global curve, ptr, Xm
+
+        Xm[:-1] = Xm[1:]                      # shift data in the temporal mean 1 sample left
+        try:
+            value = acc1                # read line (single value) from the serial port
+            Xm[-1] = float(value)                 # vector containing the instantaneous values      
+            ptr += 1                              # update x position for displaying the curve
+            curve.setData(Xm)                     # set the curve with this data
+            curve.setPos(ptr,0)                   # set x position in the graph to 0
+            QtGui.QApplication.processEvents()    # you MUST process the plot now
+        except NameError:
+            pass
+
+
 
 if __name__ == '__main__':
     #establish serial comm to teststand and avionics,XXX not sure how to determine order, just plug them in in order...
@@ -177,8 +193,23 @@ if __name__ == '__main__':
     elif host_system == "Darwin":
         testStandCommPort = '/dev/tty.wchusbserial1420'
         avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
-    with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
-        with serial.Serial(avionicsCommPort,38400, timeout=0.001) as avionics:
-            # TODO check if serial is successfully opened
 
-            curses.wrapper(main,testStand,avionics)        
+    try:
+        app = QtGui.QApplication([]) 
+
+        win = pg.GraphicsWindow(title="Avionics Feed") # create a window
+        p = win.addPlot(title="Mag plot")  # creates empty space for the plot in the window
+        curve = p.plot()                        # create an empty "plot" (a curve to plot)
+
+        windowWidth = 500                       # width of the window displaying the curve
+        Xm = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
+        ptr = -windowWidth                      # set first x position
+
+        with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
+            with serial.Serial(avionicsCommPort,38400, timeout=0.001) as avionics:
+                # TODO check if serial is successfully opened
+
+                curses.wrapper(main,testStand,avionics)        
+    finally:
+        pg.QtGui.QApplication.exec_()
+
