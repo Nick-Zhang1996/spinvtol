@@ -6,6 +6,8 @@ import datetime
 import time
 import platform
 
+# from bottom, how far up do we display rolling data
+rolling_offset = 10
 
 def main(screen, testStand, avionics):
     curses.curs_set(0)                      # Set cursor visibility where 0 = invisible,
@@ -13,7 +15,7 @@ def main(screen, testStand, avionics):
     curses.noecho()
     curses.use_default_colors()             # Lets your terminal client set the fonts and colors
     ymax, xmax = screen.getmaxyx()          # Get the screen dimensions
-    screen.setscrreg(0,ymax-5)
+    screen.setscrreg(0,ymax-rolling_offset)
     screen.scrollok(True)
 
     command = ""
@@ -29,11 +31,9 @@ def main(screen, testStand, avionics):
     start_ts = datetime.datetime.now()
 
     while not(quit):
-        screen.addstr(ymax-1,xmax-20,str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
+        # show loop freq
+        #screen.addstr(ymax-1,xmax-20,"loop freq = "+str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
         start_ts = datetime.datetime.now()
-        #now = str(datetime.datetime.now())
-        #screen.addstr(3, 1, now)
-        #screen.refresh()
 
         # read from test stand serial 
         if (testStand.in_waiting>20):
@@ -62,7 +62,7 @@ def main(screen, testStand, avionics):
                 screen.scroll()
                 try:
                     text = line.decode()[:-2]
-                    screen.addstr(ymax-5,0,"[test stand]: "+text)
+                    screen.addstr(ymax-rolling_offset,0,"[test stand]: "+text)
                 except UnicodeDecodeError:
                     pass
             screen.refresh()
@@ -70,7 +70,7 @@ def main(screen, testStand, avionics):
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
         # a complete message has at least 62 bytes
-        if (avionics.in_waiting> 70 ):
+        if (avionics.in_waiting > 70 ):
             line = avionics.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
@@ -97,6 +97,11 @@ def main(screen, testStand, avionics):
                         acc2_x = data[7]
                         acc2_y = data[8] 
                         acc2_z = data[9] 
+
+                        acc1 = (acc1_x**2 +acc1_y**2 +acc1_z**2)**0.5
+                        acc2 = (acc2_x**2 +acc2_y**2 +acc2_z**2)**0.5
+                        screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
+                        screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
                 except ValueError:
                     # this is not a machine readable line, no big deal
                     pass
@@ -106,7 +111,7 @@ def main(screen, testStand, avionics):
                 # may throw UnicodeDecodeError, not big deal
                 try:
                     text = line.decode()[:-2]
-                    screen.addstr(ymax-5,0,"[avionics]: "+text)
+                    screen.addstr(ymax-rolling_offset,0,"[avionics]: "+text)
                 except UnicodeDecodeError:
                     pass
             screen.refresh()
