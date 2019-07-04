@@ -6,6 +6,8 @@ import datetime,time,platform
 import numpy as np
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
+import warnings
+from math import pi,sin,cos
 
 # from bottom, how far up do we display rolling data
 rolling_offset = 10
@@ -30,8 +32,17 @@ def main(screen, testStand, avionics):
 
     # main loop, print,parse arduino output and send command
     start_ts = datetime.datetime.now()
+    flag_calibrated = False
+    flag_new_data_testStand = False
+    flag_new_data_avionics = True
+
+    calibration_data = []
+    R_12 = None
+    scale_12 = None
 
     while not(quit):
+
+        global curve,curve1,curve2, ptr, Xm,Ym,Zm
         # show loop freq
         #screen.addstr(ymax-1,xmax-20,"loop freq = "+str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
         start_ts = datetime.datetime.now()
@@ -51,9 +62,11 @@ def main(screen, testStand, avionics):
                     # remove prefix #, suffix \r\n 
                     data = [float(i) for i in line[1:-2].split(b',')]
                     if (len(data)==3):
-                        ts = data[0]
+                        testStand_ts = data[0]
                         azimuth = data[1]
+                        # omega unit rev/s
                         omega = data[2] 
+                        flag_new_data_avionics = True
                         #print(ts,azimuth,omega)
                 except ValueError:
                     # this is not a machine readable line, no big deal
@@ -86,23 +99,25 @@ def main(screen, testStand, avionics):
                     data = [float(i) for i in line[1:-2].split(b',')]
                     if (len(data)==10):
                         # TODO complete the parsing
-                        ts = data[0]
+                        avionics_ts = data[0]
                         mx = data[1]
                         my = data[2] 
                         mz = data[3] 
+                        mag = np.matrix(data[1:4]).T
 
                         acc1_x = data[4]
                         acc1_y = data[5] 
                         acc1_z = data[6] 
+                        acc1 = np.matrix(data[4:7]).T
 
                         acc2_x = data[7]
                         acc2_y = data[8] 
                         acc2_z = data[9] 
+                        acc2 = np.matrix(data[7:]).T
 
-                        acc1 = (acc1_x**2 +acc1_y**2 +acc1_z**2)**0.5
-                        acc2 = (acc2_x**2 +acc2_y**2 +acc2_z**2)**0.5
-                        screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
-                        screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
+                        flag_new_data_testStand = True
+                        #screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
+                        #screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
                 except ValueError:
                     # this is not a machine readable line, no big deal
                     pass
@@ -132,10 +147,16 @@ def main(screen, testStand, avionics):
         # command here includes a trailing \n, remove that before parsing
         if (len(command)>0 and command[-1] == '\n'):
             curses.beep() #doesn't seem to work
-            if command[:-1] == 'quit':
+            if (command[:-1] == 'quit') or (command[:-1] == 'q'):
                 quit = True
             elif command[:-1] == 'clear':
                 screen.clear()
+            elif command[:-1] == 'calibrate':
+                flag_calibrated = False
+                calibration_data = []
+                screen.addstr(ymax-2,0,"calibrationg start")
+                screen.refresh()
+
             else:
                 # command start with single letter 't': intended for teststand
                 # e.g.  "t sync" -> send "sync" to teststand (with additional trailing \r\n)
@@ -167,19 +188,65 @@ def main(screen, testStand, avionics):
             command = ""
         screen.refresh()
 
-        # update plot
-        global curve, ptr, Xm
+        # data processing
+        if (flag_new_data_testStand):
+            # calibration
+            if (not flag_calibrated):
+                if (len(calibration_data)<100):
+                    calibration_data.append( [acc1_x,acc1_y,acc1_z,acc2_x,acc2_y,acc2_z])
+                    screen.move(ymax-2,0)
+                    screen.clrtoeol()
+                    screen.addstr(ymax-2,0,"Calibrating... " + str(len(calibration_data)) +"/100, do not move.")
+                    screen.refresh()
+                else:
+                    calibration_data = np.array(calibration_data)
+                    avg_acc_by_axis = np.average(calibration_data, axis=0)
+                    vec_acc1 = np.matrix(avg_acc_by_axis[:3]).T
+                    vec_acc2 = np.matrix(avg_acc_by_axis[3:]).T
+                    # acc2 = R*acc1, this includes scaling
+                    R_12 = 2*(vec_acc1+vec_acc2)*(vec_acc1+vec_acc2).T/((vec_acc1+vec_acc2).T*(vec_acc1+vec_acc2)) - np.identity(3)
+                    mod1 = (avg_acc_by_axis[0]**2 + avg_acc_by_axis[1]**2 + avg_acc_by_axis[2]**2)**0.5
+                    mod2 = (avg_acc_by_axis[3]**2 + avg_acc_by_axis[4]**2 + avg_acc_by_axis[5]**2)**0.5
+                    screen.move(ymax-2,0)
+                    screen.clrtoeol()
+                    screen.addstr(ymax-2,0,"Calibration Done")
+                    flag_calibrated = True
+            else:
 
-        Xm[:-1] = Xm[1:]                      # shift data in the temporal mean 1 sample left
-        try:
-            value = acc1                # read line (single value) from the serial port
-            Xm[-1] = float(value)                 # vector containing the instantaneous values      
-            ptr += 1                              # update x position for displaying the curve
-            curve.setData(Xm)                     # set the curve with this data
-            curve.setPos(ptr,0)                   # set x position in the graph to 0
-            QtGui.QApplication.processEvents()    # you MUST process the plot now
-        except NameError:
-            pass
+                # update plot
+                #Xm[:,:-1] = Xm[:,1:]                      # shift data in the temporal mean 1 sample left
+                Xm[:-1] = Xm[1:]                      # shift data in the temporal mean 1 sample left
+                Ym[:-1] = Ym[1:]                      # shift data in the temporal mean 1 sample left
+                try:
+                    Xm[-1] = np.linalg.norm(acc1-R_12*acc2)              # vector containing the instantaneous values      
+                    if (abs(omega)>1):
+                        Ym[-1] = Xm[-1]/omega**2              # vector containing the instantaneous values      
+                    else: 
+                        Ym[-1] = 0
+
+                    screen.addstr(ymax-5,0,str(Ym[-1]))
+                    screen.refresh()
+                    ptr += 1                              # update x position for displaying the curve
+                    curve.setData(Xm)                     # set the curve with this data
+                    #curve.setPos(avionics_ts/1000.0,0)                   # set x position in the graph to 0
+                    curve.setPos(ptr,0)                   # set x position in the graph to 0
+                    curve1.setData(Ym)                     # set the curve with this data
+                    curve1.setPos(ptr,0)                   # set x position in the graph to 0
+                    QtGui.QApplication.processEvents()    # you MUST process the plot now
+                except NameError:
+                    # forgot why I catch ame error here
+                    raise
+
+            flag_new_data_testStand = False
+
+        if (flag_new_data_avionics):
+            if (flag_calibrated):
+                Zm[:-1] = Zm[1:]                      # shift data in the temporal mean 1 sample left
+                Zm[-1] = np.dot(np.array([0,1,0]),mag)
+                curve2.setData(Zm)                     # set the curve with this data
+                curve2.setPos(ptr,0)                   # set x position in the graph to 0
+                QtGui.QApplication.processEvents()    # you MUST process the plot now
+            flag_new_data_avionics = False
 
 
 
@@ -198,11 +265,17 @@ if __name__ == '__main__':
         app = QtGui.QApplication([]) 
 
         win = pg.GraphicsWindow(title="Avionics Feed") # create a window
-        p = win.addPlot(title="Mag plot")  # creates empty space for the plot in the window
-        curve = p.plot()                        # create an empty "plot" (a curve to plot)
+        plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot10 = win.addPlot(title="Mag angle",row=1,col=0,colspan=2,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
+        curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
+        curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
 
         windowWidth = 500                       # width of the window displaying the curve
         Xm = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
+        Ym = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
+        Zm = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
         ptr = -windowWidth                      # set first x position
 
         with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
@@ -211,5 +284,6 @@ if __name__ == '__main__':
 
                 curses.wrapper(main,testStand,avionics)        
     finally:
+        print("Please close the plot window")
         pg.QtGui.QApplication.exec_()
 
