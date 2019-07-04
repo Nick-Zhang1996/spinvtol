@@ -231,7 +231,7 @@ class MPU9250
     uint8_t Mscale = MFS_16BITS;
 
     // 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
-    uint8_t Mmode = M_8HZ;
+    uint8_t Mmode = M_100HZ;
 
     
     

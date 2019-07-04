@@ -198,8 +198,8 @@ void loop() {
   sCmd.readSerial();
   // overflow: 24hr over 10rev/s
   // Warning, numerically unstable
-
-  long newPosition = (enc.read())/2400.0*360;
+  // angle unit: deg
+  float newPosition = (enc.read())/2400.0*360;
   unsigned long timestamp = millis();
   kf_predict(timestamp);
 
@@ -213,6 +213,7 @@ void loop() {
     if ( (millis() - update_ts) > (unsigned long) (1000 / float(update_freq)) ) {
       Serial.print(timestamp-epoch);
       Serial.print(": Raw position : ");
+      // modulus on a float
       long offset = (int)newPosition / 360 *360;
       Serial.print(newPosition-offset);
       Serial.print("(deg) Estimated position : ");
@@ -234,8 +235,8 @@ void loop() {
     Serial.print(",");
     Serial.print((newPosition-offset),2);
     Serial.print(",");
-    // rad/s
-    Serial.println(x[1][0]*2*3.14159265359,2);
+    // raw unit: deg/s -> rev/s
+    Serial.println(x[1][0]/360.0,1);
 
   }
   
