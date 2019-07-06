@@ -13,6 +13,7 @@
 #include <SerialCommand.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
+#include <Filters.h>
 
 #define I2Cclock 400000
 #define I2Cport Wire
@@ -20,6 +21,8 @@
 #define MPU9250_ADDRESS MPU9250_ADDRESS_AD0 // AD0 on MPU9250 pulled down to GND
 
 SerialCommand sCmd;
+float dot;
+FilterOnePole lowfilter(LOWPASS,10);
 
 // MPU9250 init sets Wire I2c freq(adxl345 does not), let it run first
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
@@ -483,6 +486,9 @@ void setup() {
 
 
 // --------------------- LOOP ---------------------
+float mag_hist[4];
+uint8_t index;
+unsigned long led_off_ts;
 unsigned long loop_ts;
 void loop() {
 
@@ -614,6 +620,28 @@ void loop() {
   }
   // block ---
 
+  // data processing and visualization
+  float m_norm = sqrt(myIMU.mx*myIMU.mx + myIMU.my*myIMU.my + myIMU.mz*myIMU.mz);
+  // vec_mag dot (0,1,0) / mag_norm
+  dot = myIMU.my/m_norm;
+  lowfilter.input(dot);
+  mag_hist[index] = lowfilter.output();
+  index++;
+  if (mag_hist[(index+3)%4]>mag_hist[(index+2)%4] && mag_hist[(index+2)%4]>mag_hist[(index+1)%4] && mag_hist[(index+1)%4]<mag_hist[(index)%4]){
+    digitalWrite(PIN_LED1,LOW);
+    digitalWrite(PIN_LED2,LOW);
+    digitalWrite(PIN_LED3,LOW);
+    led_off_ts = millis()+20;
+  }
+  index%=4;
+  if (millis()>led_off_ts){
+    digitalWrite(PIN_LED1,HIGH);
+    digitalWrite(PIN_LED2,HIGH);
+    digitalWrite(PIN_LED3,HIGH);
+  }
+  
+  
+
   // machine readable output
   if (!human_readable_output){
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
@@ -643,7 +671,10 @@ void loop() {
     Serial.print(",");
     Serial.print(event_out.acceleration.y,2);
     Serial.print(",");
-    Serial.println(event_out.acceleration.z,2);
+    Serial.print(event_out.acceleration.z,2);
+
+    Serial.print(",");
+    Serial.println(lowfilter.output());
   }
   
 

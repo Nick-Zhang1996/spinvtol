@@ -99,7 +99,7 @@ def main(screen, testStand, avionics):
                     # sample parsing, need more work TODO
                     # remove prefix #, suffix \r\n 
                     data = [float(i) for i in line[1:-2].split(b',')]
-                    if (len(data)==10):
+                    if (len(data)==11):
                         # TODO complete the parsing
                         avionics_ts = data[0]
                         mx = data[1]
@@ -115,8 +115,9 @@ def main(screen, testStand, avionics):
                         acc2_x = data[7]
                         acc2_y = data[8] 
                         acc2_z = data[9] 
-                        acc2 = np.matrix(data[7:]).T
+                        acc2 = np.matrix(data[7:10]).T
 
+                        custom = data[10] 
                         flag_new_data_testStand = True
                         #screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
                         #screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
@@ -231,45 +232,42 @@ def main(screen, testStand, avionics):
                     screen.clrtoeol()
                     screen.addstr(ymax-2,0,"Calibration Done")
                     flag_calibrated = True
-            else:
-
-                # update plot
-                Xm[:-1,:] = Xm[1:,:]                      # shift data in the temporal mean 1 sample left
-                #Xm[:-1,1] = Xm[1:,1]                      # shift data in the temporal mean 1 sample left
-                Ym[:-1,:] = Ym[1:,:]                          # shift data in the temporal mean 1 sample left
-                try:
-                    #ptr += 1                              # update x position for displaying the curve
-                    Xm[-1,0] = avionics_ts/1000.0 # in second
-                    Xm[-1,1] = np.linalg.norm(acc1-R_12*acc2)              # vector containing the instantaneous values      
-
-                    Ym[-1,0] = avionics_ts/1000.0 # in second
-                    if (abs(omega)>1):
-                        Ym[-1,1] = Xm[-1,1]/omega**2              # vector containing the instantaneous values      
-                    else: 
-                        Ym[-1,1] = 0
-
-                    screen.addstr(ymax-5,0,str(Ym[-1,1]))
-                    screen.refresh()
-                    curve.setData(Xm)                     # set the curve with this data
-                    curve1.setData(Ym)                     # set the curve with this data
-                    #curve.setPos(float(Xm[-1,0]),0.0)                     # set the curve with this data
-                    #curve1.setPos(float(Ym[-1,0]),0.0)                     # set the curve with this data
-                    QtGui.QApplication.processEvents()    # you MUST process the plot now
-                except NameError:
-                    # forgot why I catch ame error here
-                    raise
 
             flag_new_data_testStand = False
 
         if (flag_new_data_avionics):
             if (flag_calibrated):
+                # update plot (avionics related)
+
+                Xm[:-1,:] = Xm[1:,:]                      # shift data in the temporal mean 1 sample left
+                Ym[:-1,:] = Ym[1:,:]                          # shift data in the temporal mean 1 sample left
                 Zm[:-1,:] = Zm[1:,:]                          # shift data in the temporal mean 1 sample left
+                Cm[:-1,:] = Cm[1:,:]                      # shift data in the temporal mean 1 sample left
+
+                Xm[-1,0] = avionics_ts/1000.0 # in second
+                Xm[-1,1] = np.linalg.norm(acc1-R_12*acc2)              # vector containing the instantaneous values      
+
+                Ym[-1,0] = avionics_ts/1000.0 # in second
+                if (abs(omega)>1):
+                    Ym[-1,1] = Xm[-1,1]/omega**2              # vector containing the instantaneous values      
+                else: 
+                    Ym[-1,1] = 0
+
                 Zm[-1,0] = testStand_ts/1000.0 # in second
                 Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
+
+                Cm[-1,0] = testStand_ts/1000.0 # in second
+                Cm[-1,1] = custom
+
+                screen.addstr(ymax-5,0,str(Ym[-1,1]))
+                screen.refresh()
+                curve.setData(Xm)                     # set the curve with this data
+                curve1.setData(Ym)                     # set the curve with this data
                 curve2.setData(Zm)                     # set the curve with this data
-                #curve2.setPos(ptr,0)                   # set x position in the graph to 0
+                curve3.setData(Cm)                     # set the curve with this data
                 QtGui.QApplication.processEvents()    # you MUST process the plot now
             flag_new_data_avionics = False
+
 
 
 
@@ -290,16 +288,19 @@ if __name__ == '__main__':
         win = pg.GraphicsWindow(title="Avionics Feed") # create a window
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot10 = win.addPlot(title="Mag angle",row=1,col=0,colspan=2,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot10 = win.addPlot(title="Mag angle",row=1,col=0,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot11 = win.addPlot(title="Cusotm Filtered",row=1,col=1,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
+        curve3 = plot11.plot()                        # create an empty "plot" (a curve to plot)
 
         windowWidth = 500                       # width of the window displaying the curve
         Xm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         #Xm = np.linspace(0,0,windowWidth)
         Ym = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         Zm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+        Cm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         ptr = -windowWidth                      # set first x position
 
         with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
