@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # data processor for test stand and monocopter avionics
 import serial
 import curses
@@ -40,12 +41,13 @@ def main(screen, testStand, avionics):
     R_12 = None
     scale_12 = None
 
+    epoch = datetime.datetime.now()
     while not(quit):
 
         global curve,curve1,curve2, ptr, Xm,Ym,Zm
         # show loop freq
         #screen.addstr(ymax-1,xmax-20,"loop freq = "+str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
-        start_ts = datetime.datetime.now()
+        screen.addstr(ymax-1,xmax-20,"ts = "+str(int((datetime.datetime.now()-epoch).total_seconds())))
 
         # read from test stand serial 
         if (testStand.in_waiting>20):
@@ -151,6 +153,24 @@ def main(screen, testStand, avionics):
                 quit = True
             elif command[:-1] == 'clear':
                 screen.clear()
+            elif command[:-1] == 'flush':
+                testStand.reset_input_buffer()
+                avionics.reset_input_buffer()
+            elif command[:-1] == 'sync':
+                screen.scroll()
+                screen.addstr(ymax-rolling_offset,0,"[reader]: "+"Automatic Sync sequence")
+
+                testStand.write('sync\r\n'.encode())
+                screen.scroll()
+                screen.addstr(ymax-rolling_offset,0,"Command Sent[test stand]: sync")
+                curses.napms(100)
+
+                avionics.write('sync\r\n'.encode())
+                epoch = datetime.datetime.now()
+                screen.scroll()
+                screen.addstr(ymax-rolling_offset,0,"Command Sent[avionics]: sync")
+                screen.refresh()
+
             elif command[:-1] == 'calibrate':
                 flag_calibrated = False
                 calibration_data = []
@@ -180,11 +200,11 @@ def main(screen, testStand, avionics):
                     screen.clrtoeol()
                     screen.addstr(ymax-2,0,"Unrecognized command: "+command)
 
-                # clear user input
-                screen.move(ymax-1,0)
-                screen.clrtoeol()
-                screen.addstr(ymax-1,0,"Command: ")
-                screen.refresh()
+            # clear user input
+            screen.move(ymax-1,0)
+            screen.clrtoeol()
+            screen.addstr(ymax-1,0,"Command: ")
+            screen.refresh()
             command = ""
         screen.refresh()
 
@@ -214,24 +234,26 @@ def main(screen, testStand, avionics):
             else:
 
                 # update plot
-                #Xm[:,:-1] = Xm[:,1:]                      # shift data in the temporal mean 1 sample left
-                Xm[:-1] = Xm[1:]                      # shift data in the temporal mean 1 sample left
-                Ym[:-1] = Ym[1:]                      # shift data in the temporal mean 1 sample left
+                Xm[:-1,:] = Xm[1:,:]                      # shift data in the temporal mean 1 sample left
+                #Xm[:-1,1] = Xm[1:,1]                      # shift data in the temporal mean 1 sample left
+                Ym[:-1,:] = Ym[1:,:]                          # shift data in the temporal mean 1 sample left
                 try:
-                    Xm[-1] = np.linalg.norm(acc1-R_12*acc2)              # vector containing the instantaneous values      
-                    if (abs(omega)>1):
-                        Ym[-1] = Xm[-1]/omega**2              # vector containing the instantaneous values      
-                    else: 
-                        Ym[-1] = 0
+                    #ptr += 1                              # update x position for displaying the curve
+                    Xm[-1,0] = avionics_ts/1000.0 # in second
+                    Xm[-1,1] = np.linalg.norm(acc1-R_12*acc2)              # vector containing the instantaneous values      
 
-                    screen.addstr(ymax-5,0,str(Ym[-1]))
+                    Ym[-1,0] = avionics_ts/1000.0 # in second
+                    if (abs(omega)>1):
+                        Ym[-1,1] = Xm[-1,1]/omega**2              # vector containing the instantaneous values      
+                    else: 
+                        Ym[-1,1] = 0
+
+                    screen.addstr(ymax-5,0,str(Ym[-1,1]))
                     screen.refresh()
-                    ptr += 1                              # update x position for displaying the curve
                     curve.setData(Xm)                     # set the curve with this data
-                    #curve.setPos(avionics_ts/1000.0,0)                   # set x position in the graph to 0
-                    curve.setPos(ptr,0)                   # set x position in the graph to 0
                     curve1.setData(Ym)                     # set the curve with this data
-                    curve1.setPos(ptr,0)                   # set x position in the graph to 0
+                    #curve.setPos(float(Xm[-1,0]),0.0)                     # set the curve with this data
+                    #curve1.setPos(float(Ym[-1,0]),0.0)                     # set the curve with this data
                     QtGui.QApplication.processEvents()    # you MUST process the plot now
                 except NameError:
                     # forgot why I catch ame error here
@@ -241,10 +263,11 @@ def main(screen, testStand, avionics):
 
         if (flag_new_data_avionics):
             if (flag_calibrated):
-                Zm[:-1] = Zm[1:]                      # shift data in the temporal mean 1 sample left
-                Zm[-1] = np.dot(np.array([0,1,0]),mag)
+                Zm[:-1,:] = Zm[1:,:]                          # shift data in the temporal mean 1 sample left
+                Zm[-1,0] = testStand_ts/1000.0 # in second
+                Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
                 curve2.setData(Zm)                     # set the curve with this data
-                curve2.setPos(ptr,0)                   # set x position in the graph to 0
+                #curve2.setPos(ptr,0)                   # set x position in the graph to 0
                 QtGui.QApplication.processEvents()    # you MUST process the plot now
             flag_new_data_avionics = False
 
@@ -273,9 +296,10 @@ if __name__ == '__main__':
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
 
         windowWidth = 500                       # width of the window displaying the curve
-        Xm = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
-        Ym = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
-        Zm = np.linspace(0,0,windowWidth)          # create array that will contain the relevant time series     
+        Xm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+        #Xm = np.linspace(0,0,windowWidth)
+        Ym = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+        Zm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         ptr = -windowWidth                      # set first x position
 
         with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
