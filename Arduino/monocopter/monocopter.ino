@@ -1,6 +1,5 @@
 // monocopter controller
 // Nick Zhang 2019
-
 #define PIN_LED1 10
 #define PIN_LED2 11
 #define PIN_LED3 12
@@ -14,6 +13,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 #include <Filters.h>
+#include <SerialCommand.h>
 
 #define I2Cclock 400000
 #define I2Cport Wire
@@ -486,12 +486,20 @@ void setup() {
 
 
 // --------------------- LOOP ---------------------
-float mag_hist[4];
 uint8_t index;
 unsigned long led_off_ts;
 unsigned long loop_ts;
-bool flag_max_mag = false;
-
+bool flag_mag = false;
+bool flag_ascend = false;
+bool flag_light_on = false;
+int dir_vote = 0;
+// the max and min used to calculate average
+float current_max;
+float current_min;
+// the max and min being actively updated lively
+// pushed to current_max/min upon transicion of asc/dec
+float pending_max;
+float pending_min;
 void loop() {
 
   
@@ -627,23 +635,47 @@ void loop() {
   // vec_mag dot (0,1,0) / mag_norm
   dot = myIMU.my/m_norm;
   lowfilter.input(dot);
-  mag_hist[index] = lowfilter.output();
-  index++;
-  if (mag_hist[(index+3)%4]>mag_hist[(index+2)%4] && mag_hist[(index+2)%4]>mag_hist[(index+1)%4] && mag_hist[(index+1)%4]<mag_hist[(index)%4]){
+
+  float val = lowfilter.output();
+  if (flag_ascend){
+    if (val > pending_max){
+      pending_max = val;
+      dir_vote = 0;
+    } else {
+      dir_vote++;
+    }
+  } else {
+    // descending
+    if (val < pending_min){
+      pending_min = val;
+      dir_vote = 0;
+    } else {
+      dir_vote++;
+    }
+  }
+
+  // change direction
+  // this should be related to omega
+  if (dir_vote >= 20){
+    if (flag_ascend){
+      current_max = pending_max;
+    } else {
+      current_min = pending_min;
+    }
+    flag_ascend = !flag_ascend;
+    dir_vote = 0;
+    pending_max = pending_min = val;
+  }
+
+  if (flag_ascend && abs(current_min+current_max-2*val)<0.3 && !flag_light_on){
     digitalWrite(PIN_LED1,LOW);
     digitalWrite(PIN_LED2,LOW);
     digitalWrite(PIN_LED3,LOW);
     led_off_ts = millis()+10;
-    flag_max_mag = true;
+    // actually just a flag
+    flag_mag = true;
+    flag_light_on = true;
   }
-  index%=4;
-  if (millis()>led_off_ts){
-    digitalWrite(PIN_LED1,HIGH);
-    digitalWrite(PIN_LED2,HIGH);
-    digitalWrite(PIN_LED3,HIGH);
-  }
-  
-  
 
   // machine readable output
   if (!human_readable_output){
@@ -675,14 +707,15 @@ void loop() {
     Serial.print(event_out.acceleration.z,2);
 
     Serial.print(",");
-    Serial.println((flag_max_mag == true)?1:0);
-    flag_max_mag = false;
+    Serial.println(abs(current_min+current_max-2*val));
+    flag_mag = false;
     
     while (millis()-loop_ts < 20){
       if (millis()>led_off_ts){
         digitalWrite(PIN_LED1,HIGH);
         digitalWrite(PIN_LED2,HIGH);
         digitalWrite(PIN_LED3,HIGH);
+        flag_light_on = false;
       }// limit transmission rate to 50Hz
     }
     //Serial.println(millis()-loop_ts);

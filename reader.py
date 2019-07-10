@@ -118,16 +118,15 @@ def main(screen, testStand, avionics):
                         acc2_z = data[9] 
                         acc2 = np.matrix(data[7:10]).T
 
-                        # report max mag reading
-                        custom = data[10] > 0.5
-                        try:
-                            if (custom and omega is not None and azimuth is not None and omega>1):
-                                mag_offset.append([omega, azimuth])
-                                screen.move(ymax-6,0)
-                                screen.clrtoeol()
-                                screen.addstr(ymax-6,0,"Data count: "+str(len(mag_offset)))
-                        except NameError: # in case omega is not ready
-                            pass
+                        custom = data[10]
+                        #try:
+                        #    if (custom and omega is not None and azimuth is not None and omega>1):
+                        #        mag_offset.append([omega, azimuth])
+                        #        screen.move(ymax-6,0)
+                        #        screen.clrtoeol()
+                        #        screen.addstr(ymax-6,0,"Data count: "+str(len(mag_offset)))
+                        #except NameError: # in case omega is not ready
+                        #    pass
                         flag_new_data_testStand = True
                         #screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
                         #screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
@@ -267,7 +266,7 @@ def main(screen, testStand, avionics):
                 Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
 
                 Cm[-1,0] = testStand_ts/1000.0 # in second
-                Cm[-1,1] = azimuth
+                Cm[-1,1] = custom
 
                 screen.addstr(ymax-5,0,str(Ym[-1,1]))
                 screen.refresh()
@@ -299,17 +298,17 @@ if __name__ == '__main__':
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot10 = win.addPlot(title="Mag angle",row=1,col=0,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot11 = win.addPlot(title="theta",row=1,col=1,labels={'left':"theta",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot11 = win.addPlot(title="error",row=1,col=1,labels={'left':"error",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
         curve3 = plot11.plot()                        # create an empty "plot" (a curve to plot)
 
-        windowWidth = 500                       # width of the window displaying the curve
+        windowWidth = 200                       # width of the window displaying the curve
         Xm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         #Xm = np.linspace(0,0,windowWidth)
         Ym = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
-        Zm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+        Zm = np.vstack([np.linspace(0,0,windowWidth/2),np.linspace(0,0,windowWidth/2)]).T          # create array that will contain the relevant time series     
         Cm = np.vstack([np.linspace(0,0,windowWidth/2),np.linspace(0,0,windowWidth/2)]).T          # create array that will contain the relevant time series     
         ptr = -windowWidth                      # set first x position
 
@@ -325,9 +324,9 @@ if __name__ == '__main__':
                 curses.wrapper(main,testStand,avionics)        
     finally:
         # visualize relation between omega and theta(when magnetic reading is max)
-        mag_offset = np.array(mag_offset)
-        plt.scatter(mag_offset[:,0],mag_offset[:,1])
-        plt.show()
+        #mag_offset = np.array(mag_offset)
+        #plt.scatter(mag_offset[:,0],mag_offset[:,1])
+        #plt.show()
 
         print("Please close the plot window")
         pg.QtGui.QApplication.exec_()
