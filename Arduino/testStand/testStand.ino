@@ -214,7 +214,7 @@ void loop() {
       Serial.print(timestamp-epoch);
       Serial.print(": Raw position : ");
       // modulus on a float
-      long offset = (int)newPosition / 360 *360;
+      long offset = (long)newPosition / 360 *360;
       Serial.print(newPosition-offset);
       Serial.print("(deg) Estimated position : ");
       offset = (int)x[0][0] / 360 *360;
@@ -225,7 +225,7 @@ void loop() {
     }
   } else {
     // ts, azimuth angle(deg), angular velocity(rad/s)
-    long offset = (int)newPosition / 360 *360;
+    long offset = (long)newPosition / 360 *360;
     while (millis()-loop_ts < 20); // limit transmission rate to 50Hz
     loop_ts = millis();
     
@@ -233,7 +233,7 @@ void loop() {
     Serial.print("#");
     Serial.print(timestamp-epoch);
     Serial.print(",");
-    Serial.print((newPosition-offset),2);
+    Serial.print(newPosition-offset,2);
     Serial.print(",");
     // raw unit: deg/s -> rev/s
     Serial.println(x[1][0]/360.0,1);

@@ -9,6 +9,7 @@ from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 import warnings
 from math import pi,sin,cos
+import matplotlib.pyplot as plt
 
 # from bottom, how far up do we display rolling data
 rolling_offset = 10
@@ -86,7 +87,7 @@ def main(screen, testStand, avionics):
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
         # a complete message has at least 62 bytes
-        if (avionics.in_waiting > 70 ):
+        if (avionics.in_waiting > 75 ):
             line = avionics.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
@@ -117,7 +118,16 @@ def main(screen, testStand, avionics):
                         acc2_z = data[9] 
                         acc2 = np.matrix(data[7:10]).T
 
-                        custom = data[10] 
+                        # report max mag reading
+                        custom = data[10] > 0.5
+                        try:
+                            if (custom and omega is not None and azimuth is not None and omega>1):
+                                mag_offset.append([omega, azimuth])
+                                screen.move(ymax-6,0)
+                                screen.clrtoeol()
+                                screen.addstr(ymax-6,0,"Data count: "+str(len(mag_offset)))
+                        except NameError: # in case omega is not ready
+                            pass
                         flag_new_data_testStand = True
                         #screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
                         #screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
@@ -257,7 +267,7 @@ def main(screen, testStand, avionics):
                 Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
 
                 Cm[-1,0] = testStand_ts/1000.0 # in second
-                Cm[-1,1] = custom
+                Cm[-1,1] = azimuth
 
                 screen.addstr(ymax-5,0,str(Ym[-1,1]))
                 screen.refresh()
@@ -289,7 +299,7 @@ if __name__ == '__main__':
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot10 = win.addPlot(title="Mag angle",row=1,col=0,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot11 = win.addPlot(title="Cusotm Filtered",row=1,col=1,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot11 = win.addPlot(title="theta",row=1,col=1,labels={'left':"theta",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
@@ -300,8 +310,13 @@ if __name__ == '__main__':
         #Xm = np.linspace(0,0,windowWidth)
         Ym = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         Zm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
-        Cm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+        Cm = np.vstack([np.linspace(0,0,windowWidth/2),np.linspace(0,0,windowWidth/2)]).T          # create array that will contain the relevant time series     
         ptr = -windowWidth                      # set first x position
+
+        # prepare post experiment data
+        mag_offset = []
+
+        # starts main update loop
 
         with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
             with serial.Serial(avionicsCommPort,38400, timeout=0.001) as avionics:
@@ -309,6 +324,11 @@ if __name__ == '__main__':
 
                 curses.wrapper(main,testStand,avionics)        
     finally:
+        # visualize relation between omega and theta(when magnetic reading is max)
+        mag_offset = np.array(mag_offset)
+        plt.scatter(mag_offset[:,0],mag_offset[:,1])
+        plt.show()
+
         print("Please close the plot window")
         pg.QtGui.QApplication.exec_()
 

@@ -490,6 +490,8 @@ float mag_hist[4];
 uint8_t index;
 unsigned long led_off_ts;
 unsigned long loop_ts;
+bool flag_max_mag = false;
+
 void loop() {
 
   
@@ -631,7 +633,8 @@ void loop() {
     digitalWrite(PIN_LED1,LOW);
     digitalWrite(PIN_LED2,LOW);
     digitalWrite(PIN_LED3,LOW);
-    led_off_ts = millis()+20;
+    led_off_ts = millis()+10;
+    flag_max_mag = true;
   }
   index%=4;
   if (millis()>led_off_ts){
@@ -646,9 +649,7 @@ void loop() {
   if (!human_readable_output){
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
-    while (millis()-loop_ts < 20); // limit transmission rate to 50Hz
-    //Serial.println(millis()-loop_ts);
-    loop_ts = millis();
+
     Serial.print('#');
 
     Serial.print(millis()-epoch);
@@ -674,7 +675,18 @@ void loop() {
     Serial.print(event_out.acceleration.z,2);
 
     Serial.print(",");
-    Serial.println(lowfilter.output());
+    Serial.println((flag_max_mag == true)?1:0);
+    flag_max_mag = false;
+    
+    while (millis()-loop_ts < 20){
+      if (millis()>led_off_ts){
+        digitalWrite(PIN_LED1,HIGH);
+        digitalWrite(PIN_LED2,HIGH);
+        digitalWrite(PIN_LED3,HIGH);
+      }// limit transmission rate to 50Hz
+    }
+    //Serial.println(millis()-loop_ts);
+    loop_ts = millis();
   }
   
 
