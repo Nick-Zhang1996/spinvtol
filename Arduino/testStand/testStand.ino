@@ -17,7 +17,7 @@ Encoder enc(2,3);
 const int synchro_pinno = 4;
 
 // actually matrix here logically means type of the elements in a matrix, an array of elements compose a matrix
-matrix x[2][1],F[2][2],P[2][2],Q[2][2],H[1][2],HT[2][1];
+matrix x[2][1],F[2][2],FT[2][2],P[2][2],Q[2][2],H[1][2],HT[2][1];
 float S;
 
 
@@ -87,8 +87,8 @@ void kf_predict(  unsigned long ts){
 
   // P = FPF.T + Q
   multiply(F,P,2,2,2,buff_square);
-  invert(F,2);
-  multiply(buff_square,F,2,2,2,P);
+  transpose(F,2,2,FT);
+  multiply(buff_square,FT,2,2,2,P);
   Q[0][0] = 0.25*delta_t*delta_t*delta_t*delta_t*acc_variance;
   Q[0][1] = 0.5*delta_t*delta_t*delta_t*acc_variance;
   Q[1][0] = Q[0][1];
@@ -145,8 +145,8 @@ void kf_update(float z){
   
   // P = (I-KH)P
   multiply(K,H,2,1,2,buff_square);
-  subtract(I,buff_square,2,2,buff_square);
-  multiply(buff_square,P,2,2,2,buff_square2);
+  subtract(I,buff_square,2,2,buff_square2);
+  multiply(buff_square2,P,2,2,2,buff_square);
   mtxcopy(buff_square,2,2,P);
   // y = z - Hx post fit residual, not needed
   return;
