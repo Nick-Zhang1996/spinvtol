@@ -118,8 +118,8 @@ def main(screen, testStand, avionics):
                         acc2_z = data[9] 
                         acc2 = np.matrix(data[7:10]).T
 
-                        # report max mag reading
-                        custom = data[10] > 0.5
+                        # rev/s from avionics
+                        custom = data[10] 
                         try:
                             if (custom and omega is not None and azimuth is not None and omega>1):
                                 mag_offset.append([omega, azimuth])
@@ -267,7 +267,7 @@ def main(screen, testStand, avionics):
                 Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
 
                 Cm[-1,0] = testStand_ts/1000.0 # in second
-                Cm[-1,1] = azimuth
+                Cm[-1,1] = min(abs(int(custom) - int(azimuth)),360-abs(int(custom) - int(azimuth)))
 
                 screen.addstr(ymax-5,0,str(Ym[-1,1]))
                 screen.refresh()
@@ -299,7 +299,7 @@ if __name__ == '__main__':
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot10 = win.addPlot(title="Mag angle",row=1,col=0,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot11 = win.addPlot(title="theta",row=1,col=1,labels={'left':"theta",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot11 = win.addPlot(title="angle difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
