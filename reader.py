@@ -304,6 +304,7 @@ if __name__ == '__main__':
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
         curve3 = plot11.plot()                        # create an empty "plot" (a curve to plot)
+        plot11.setYRange(0,180)
 
         windowWidth = 200                       # width of the window displaying the curve
         Xm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
