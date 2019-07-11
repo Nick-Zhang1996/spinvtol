@@ -14,12 +14,21 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 #include <Filters.h>
+#include <MatrixMath.h>
 
 #define I2Cclock 400000
 #define I2Cport Wire
 #include <MPU9250.h>
 #define MPU9250_ADDRESS MPU9250_ADDRESS_AD0 // AD0 on MPU9250 pulled down to GND
 
+typedef mtx_type matrix;
+#define multiply(A,B,m,n,p,C) Matrix.Multiply((mtx_type*)A, (mtx_type*)B, m, n, p, (mtx_type*)C)
+#define add(A,B,m,n,C) Matrix.Add((mtx_type*)A, (mtx_type*)B, m, n,  (mtx_type*)C)
+#define subtract(A,B,m,n,C) Matrix.Subtract((mtx_type*)A, (mtx_type*)B, m, n,  (mtx_type*)C)
+#define transpose(A,m,n,C) Matrix.Transpose((mtx_type*)A, m, n, (mtx_type*)C)
+#define invert(A,m) Matrix.Invert((mtx_type*)A,m)
+#define mtxprint(A,m,n,N) Matrix.Print((mtx_type*)A, m, n, N)
+#define mtxcopy(A,m,n,B) Matrix.Copy((mtx_type*)A, m, n, (mtx_type*)B)
 SerialCommand sCmd;
 float dot;
 FilterOnePole lowfilter(LOWPASS,10);
@@ -29,6 +38,8 @@ MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 
 Adafruit_ADXL345_Unified accel_in = Adafruit_ADXL345_Unified(1);
 Adafruit_ADXL345_Unified accel_out = Adafruit_ADXL345_Unified(2);
+
+const float pi = 3.1415926535898;
 
 void displaySensorDetails(Adafruit_ADXL345_Unified &accel)
 {
@@ -482,6 +493,188 @@ void setup() {
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
+  
+}
+// ---------------- EKF ----------------
+// x = [theta(azimuth), omega] unit: rad, rad/s
+
+// actually matrix here logically means type of the elements in a matrix, an array of elements compose a matrix
+matrix x[2][1],F[2][2],FT[2][2],P[2][2],Q[2][2],H[1][2],HT[2][1];
+float S;
+
+// unit: rad/s2, this is a rough estimate, need to see video footage, of actual monocopter
+const float acc_variance=10.0;
+
+void kf_predict(){
+  static unsigned long last_update = millis();
+  unsigned long ts = millis();
+  matrix buff_col[2][1],buff_square[2][2];
+  float delta_t = (ts - last_update) / 1000.0;
+  last_update = ts;
+  // because F.transpose is calculated in place, we need to re-init F each time
+  F[0][0] = 1;
+  F[1][0] = 0;
+  F[1][1] = 1;
+  F[0][1] = delta_t;
+  // x = Fx + Bu (no control so no Bu here)
+  
+  //Serial.print(F("entering prediction = "));
+  //Serial.print("kf_dt : ");
+  //Serial.print(delta_t);
+
+  multiply(F,x,2,2,1,buff_col);
+  mtxcopy(buff_col,2,1,x);
+  
+  //mtxprint(F,2,2,"F");
+  //mtxprint(x,2,1,"x");
+  //Serial.print("prediction -> ");
+  //mtxprint(x,2,1,"x");
+
+  // P = FPF.T + Q
+  multiply(F,P,2,2,2,buff_square);
+  transpose(F,2,2,FT);
+  multiply(buff_square,FT,2,2,2,P);
+  Q[0][0] = 0.25*delta_t*delta_t*delta_t*delta_t*acc_variance;
+  Q[0][1] = 0.5*delta_t*delta_t*delta_t*acc_variance;
+  Q[1][0] = Q[0][1];
+  Q[1][1] = delta_t*delta_t*acc_variance;
+  add(P,Q,2,2,P);
+  //mtxprint(P,2,2,"P");
+  return;
+}
+
+//z:acc observation, z = [delta_acc], unit: m/s2
+void kf_update_acc(float z){
+
+  matrix buff_single[1][1],buff_row[1][2],buff_col[2][1],buff_square[2][2],buff_square2[2][2];
+  matrix I[2][2];
+  I[0][0] = 1;
+  I[1][1] = 1;  
+  I[0][1] = 0;
+  I[1][0] = 0;
+  // y = z - H(x), where H is a function for EKF
+  
+  matrix y[1][1];
+  // constant from experiment, corresbond to 11.5 in rev/s representation
+  y[0][0] = z - 0.2913*x[1][0]*x[1][0];
+  H[0][0] = 0;
+  // Jacobian
+  H[0][1] = 2*0.2913*x[1][0];
+
+  // S = HPH.T + R
+  
+  multiply(H,P,1,2,2,buff_row);
+  multiply(buff_row,HT,1,2,1,buff_single);
+  
+  // covariance of innovation, R = var of observation, calculated from gain variation
+  S = buff_single[0][0] + pow(0.25*x[1][0]*x[1][0],2);
+  
+
+  // K = P HT S-1 ----------------------
+  matrix K[2][1];
+  multiply(P,HT,2,2,1,buff_col); 
+  //mtxprint(P,2,2,"P");
+  //mtxprint(HT,2,1,"HT");
+  
+  matrix mat_Sinv[1][1];
+  mat_Sinv[0][0] = 1.0/S;
+  multiply(buff_col,mat_Sinv,2,1,1,K);
+
+  //mtxprint(K,2,1,"K");
+  //mtxprint(x,2,1,"x");
+
+  // x = x + Ky
+  multiply(K,y,2,1,1,buff_col);
+  //mtxprint(buff_col,2,1,"Ky");
+  add(x,buff_col,2,1,x);
+  //Serial.print("update -> ");
+  //mtxprint(x,2,1,"x");
+
+  
+  // P = (I-KH)P
+  multiply(K,H,2,1,2,buff_square);
+  subtract(I,buff_square,2,2,buff_square);
+  multiply(buff_square,P,2,2,2,buff_square2);
+  mtxcopy(buff_square,2,2,P);
+  // y = z - Hx post fit residual, not needed
+  return;
+}
+
+// this is called only once per rev, when algorithm picks up a signature
+// in mag output that signifies a particular azimuth angle is reached
+// though this angle is offset by a function linear to omega (quicker rev-> larger offset)
+//z:mag observation, always zero since we update at reference point only
+// TODO make variance a function of omega, low omega mean less error
+void kf_update_mag(){
+  //Serial.print("update ->");
+  //mtxprint(x,2,1,"x");
+  
+  static float z = 0.0;
+  z += 2*3.1415926;
+  matrix buff_single[1][1],buff_row[1][2],buff_col[2][1],buff_square[2][2],buff_square2[2][2];
+  matrix I[2][2];
+  I[0][0] = 1;
+  I[1][1] = 1;  
+  I[0][1] = 0;
+  I[1][0] = 0;
+  // y = z - H(x), where H is a function for EKF
+  
+
+  // const from experiment
+  // z = 0 = theta - c*omega + noise (This is when we trigger this update)
+  H[0][0] = 1;
+  //H[0][1] = -0.0660225;
+  H[0][1] = 0;
+  transpose(H,1,2,HT);
+  multiply(H,x,1,2,1,buff_single);
+
+  matrix y[1][1];
+  y[0][0] = z - buff_single[0][0];
+  //Serial.print("y ");
+  //Serial.println(y[0][0]);
+  // S = HPH.T + R
+  
+  multiply(H,P,1,2,2,buff_row);
+  multiply(buff_row,HT,1,2,1,buff_single);
+  
+  // covariance of innovation
+  // R = experiment shows 60 deg variation for 4sigma(95% ish) -> convert to 1 sigma in rad
+  S = buff_single[0][0] + pow(0.2618,2);
+  //Serial.print("S :");
+  //Serial.println(S);
+  //mtxprint(P,2,2,"P");
+  //mtxprint(H,1,2,"H");
+  // K = P HT S-1 ----------------------
+  matrix K[2][1];
+  multiply(P,HT,2,2,1,buff_col); 
+  matrix mat_Sinv[1][1];
+  mat_Sinv[0][0] = 1.0/S;
+  multiply(buff_col,mat_Sinv,2,1,1,K);
+  // x = x + Ky
+  multiply(K,y,2,1,1,buff_col);
+  //mtxprint(buff_col,2,1,"Ky");
+  add(x,buff_col,2,1,x);
+//  Serial.print("update -> ");
+//  Serial.print(" K ");
+//  Serial.print(K[0][0]);
+//  Serial.print(" ");
+//  Serial.print(K[1][0]);
+//  Serial.print(" x: ");
+//  Serial.print(x[0][0]);
+//  Serial.print(" ");
+//  Serial.println(x[1][0]);
+  
+  // P = (I-KH)P
+  multiply(K,H,2,1,2,buff_square);
+  subtract(I,buff_square,2,2,buff_square2);
+  multiply(buff_square2,P,2,2,2,buff_square);
+  mtxcopy(buff_square,2,2,P);
+  // y = z - Hx post fit residual, not needed
+  return;
+}
+
+inline float acc_norm(sensors_event_t* event){
+  return sqrt(event->acceleration.x*event->acceleration.x+event->acceleration.y*event->acceleration.y+event->acceleration.z*event->acceleration.z);
 }
 
 
@@ -490,11 +683,11 @@ float mag_hist[4];
 uint8_t index;
 unsigned long led_off_ts;
 unsigned long loop_ts;
-bool flag_max_mag = false;
+bool flag_reset_point = false;
+bool flag_led_on = false;
+bool flag_calibrated = false;
 
 void loop() {
-
-  
   sCmd.readSerial();
   //block -- serial update
   static int serial_update_freq = 10;
@@ -623,26 +816,35 @@ void loop() {
   // block ---
 
   // data processing and visualization
+  kf_predict();
+  // WARNING FIXME two acc not aligned, implement same algo used in reader.py
+  //float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
+  //if (x[1][0]>6.28){
+  //  kf_update_acc(delta_acc);
+  //}
+
   float m_norm = sqrt(myIMU.mx*myIMU.mx + myIMU.my*myIMU.my + myIMU.mz*myIMU.mz);
   // vec_mag dot (0,1,0) / mag_norm
   dot = myIMU.my/m_norm;
   lowfilter.input(dot);
   mag_hist[index] = lowfilter.output();
   index++;
-  if (mag_hist[(index+3)%4]>mag_hist[(index+2)%4] && mag_hist[(index+2)%4]>mag_hist[(index+1)%4] && mag_hist[(index+1)%4]<mag_hist[(index)%4]){
+  if (mag_hist[(index+3)%4]>mag_hist[(index+2)%4] && mag_hist[(index+2)%4]>mag_hist[(index+1)%4] && mag_hist[(index+1)%4]<mag_hist[(index)%4] && abs(mag_hist[(index+3)%4]-mag_hist[(index+1)%4])>0.1&&!flag_led_on){
+    flag_reset_point = true;
+    kf_update_mag();
+  }
+  index%=4;
+
+  if (abs(x[0][0])<0.1){
     digitalWrite(PIN_LED1,LOW);
     digitalWrite(PIN_LED2,LOW);
     digitalWrite(PIN_LED3,LOW);
     led_off_ts = millis()+10;
-    flag_max_mag = true;
+    flag_reset_point = true;
+    flag_led_on = true;
   }
-  index%=4;
-  if (millis()>led_off_ts){
-    digitalWrite(PIN_LED1,HIGH);
-    digitalWrite(PIN_LED2,HIGH);
-    digitalWrite(PIN_LED3,HIGH);
-  }
-  
+
+
   
 
   // machine readable output
@@ -650,6 +852,7 @@ void loop() {
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
 
+    
     Serial.print('#');
 
     Serial.print(millis()-epoch);
@@ -675,15 +878,26 @@ void loop() {
     Serial.print(event_out.acceleration.z,2);
 
     Serial.print(",");
-    Serial.println((flag_max_mag == true)?1:0);
-    flag_max_mag = false;
+    // unit: degree
+    long offset = (long)(x[0][0]/pi*180)/360*360;
+    Serial.println(x[0][0]/pi*180-offset);
     
+    flag_reset_point = false;
+   if (millis()>led_off_ts){
+        digitalWrite(PIN_LED1,HIGH);
+        digitalWrite(PIN_LED2,HIGH);
+        digitalWrite(PIN_LED3,HIGH);
+        flag_led_on = false;
+      }
+    // limit transmission rate to 50Hz
     while (millis()-loop_ts < 20){
+      delayMicroseconds(100);
       if (millis()>led_off_ts){
         digitalWrite(PIN_LED1,HIGH);
         digitalWrite(PIN_LED2,HIGH);
         digitalWrite(PIN_LED3,HIGH);
-      }// limit transmission rate to 50Hz
+        flag_led_on = false;
+      }
     }
     //Serial.println(millis()-loop_ts);
     loop_ts = millis();
