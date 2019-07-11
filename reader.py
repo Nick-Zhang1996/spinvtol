@@ -318,8 +318,8 @@ if __name__ == '__main__':
 
         # starts main update loop
 
-        with serial.Serial(testStandCommPort,38400, timeout=0.001) as testStand:
-            with serial.Serial(avionicsCommPort,38400, timeout=0.001) as avionics:
+        with serial.Serial(testStandCommPort,115200, timeout=0.001) as testStand:
+            with serial.Serial(avionicsCommPort,115200, timeout=0.001) as avionics:
                 # TODO check if serial is successfully opened
 
                 curses.wrapper(main,testStand,avionics)        

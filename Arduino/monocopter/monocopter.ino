@@ -1,5 +1,6 @@
 // monocopter controller
 // Nick Zhang 2019
+
 #define PIN_LED1 10
 #define PIN_LED2 11
 #define PIN_LED3 12
@@ -304,7 +305,7 @@ void synchronize(){
 }
 
 void setup() {
-  Serial.begin(38400);
+  Serial.begin(115200);
   while (!Serial);
 
   for (int i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
@@ -678,6 +679,7 @@ inline float acc_norm(sensors_event_t* event){
 
 
 // --------------------- LOOP ---------------------
+float mag_hist[4];
 uint8_t index;
 unsigned long led_off_ts;
 unsigned long loop_ts;
@@ -842,6 +844,8 @@ void loop() {
     flag_led_on = true;
   }
 
+
+  
 
   // machine readable output
   if (!human_readable_output){

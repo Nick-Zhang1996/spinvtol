@@ -168,7 +168,7 @@ void machine(){
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(38400);
+  Serial.begin(115200);
   // x = [azimuth angle,angular velocity].T
   // x = 0
   
