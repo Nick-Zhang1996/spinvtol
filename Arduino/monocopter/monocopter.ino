@@ -583,7 +583,6 @@ void setup() {
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
   sCmd.addCommand("test",async_delay);
-  sCmd.addCommand("stop",stop_timer);
   
 }
 // ---------------- EKF ----------------
@@ -929,22 +928,26 @@ void loop() {
       last_mag_update_ts = millis();
       flag_running = true;
       kf_update_mag();
+      //Serial.print("mag update--");
 
       // Setup LED to blink when azimuth = 0
       if (!flash_in_progress){
         flash_in_progress = true;
+        //Serial.println("light on");
         pending_action = LED_ON;
 
         // time needed to travel 10 degrees, so that light will be on for 10 deg
         on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
         async_delay((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
       }
+/*
       Serial.print("omega = ");
       Serial.print(x[1][0]);
       Serial.print(" theta = ");
       Serial.print(x[0][0]);
       Serial.print("in ");
       Serial.println((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
+*/
   }
   index%=4;
 
@@ -953,7 +956,6 @@ void loop() {
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
 
-    /*
     Serial.print('#');
 
     Serial.print(millis()-epoch);
@@ -986,7 +988,6 @@ void loop() {
     Serial.print(",");
     //unit: rev/s
     Serial.println(x[1][0]/2.0/pi);
-    */
     
     flag_reset_point = false;
     // limit transmission rate to 50Hz
