@@ -5,10 +5,15 @@
 #define PIN_LED2 11
 #define PIN_LED3 12
 
+#define NONE 0
+#define LED_OFF 1
+#define LED_ON 2
+
+
 #define EI_ARDUINO_INTERRUPTED_PIN
 #include <EnableInterrupt.h>
 
-#include <Servo.h>
+//  millis() use Timer 0
 #include <Wire.h>
 #include <SerialCommand.h>
 #include <Adafruit_Sensor.h>
@@ -40,6 +45,90 @@ Adafruit_ADXL345_Unified accel_in = Adafruit_ADXL345_Unified(1);
 Adafruit_ADXL345_Unified accel_out = Adafruit_ADXL345_Unified(2);
 
 const float pi = 3.1415926535898;
+
+// the main loop runs at 50HZ, much slower than needed to actuate accurate command
+// Precise timing and actuation of POV LEDs and flap servo is achieved by timer interrupts
+
+// the several functions below enable the execution of a sequence of action in precise, asynchrous manner
+// the ISR will be called multiple times with timer interrupt, sleeping in between calls to allow main program
+// to continue. the ISR itself should determine
+// the proper action to take every time it is called, usually by maintaining a sequence number
+// it is also responsible for setting up the interrupt registers to it will be called again at proper time
+// to execute the next action sequence. 
+// upon execution of the last command in sequence, the ISR should stop the timer/disable the ISR from undesirable
+// calls in the future. 
+
+// this will set ISR(TIMER1_OVF_vect) to fire in specified delay
+void async_delay(float ms){
+    cli();
+
+    //set timer2 interrupt 
+    TCCR1A = 0;// set entire TCCR1A register to 0
+    TCCR1B = 0;// same for TCCR1B
+    TCCR1C = 0; // PWM related stuff
+    TIFR1 |= (1<<TOV1); // writing 1 to TOV1 clears the flag, preventing the ISR to be activated as soon as sei();
+
+
+    // enable timer compare interrupt and overflow interrupt
+    //TIMSK1 = (1 << OCIE1A) | ( 1 << TOIE1); // for reference, ovf interrupt
+    TIMSK1 = (1 << TOIE1);
+
+    uint16_t preload = 65536u - (ms/0.064);
+    TCNT1H  = highByte(preload);
+    TCNT1L  = lowByte(preload);
+
+    // prescaler: 1024
+    // duty cycle: (16*10^6) / (1024*65536) Hz = 0.238Hz (4.19s)
+    // per count : 64us
+    // this starts counting
+    TCCR1B |= (1 << CS12) | (1 << CS10) ; 
+
+    sei();
+
+}
+
+volatile byte pending_action = NONE;
+volatile bool flash_in_progress = false;
+volatile float on_time_ms;
+ISR(TIMER1_OVF_vect) {
+    switch (pending_action){
+
+        case LED_ON:
+            digitalWrite(PIN_LED1,LOW);
+            digitalWrite(PIN_LED2,LOW);
+            digitalWrite(PIN_LED3,LOW);
+            pending_action = LED_OFF;
+            async_delay(on_time_ms);
+            break;
+
+        case LED_OFF:
+            digitalWrite(PIN_LED1,HIGH);
+            digitalWrite(PIN_LED2,HIGH);
+            digitalWrite(PIN_LED3,HIGH);
+            pending_action  = NONE;
+            stop_timer();
+            flash_in_progress = false;
+            break;
+
+        case NONE:
+            break;
+    }
+} 
+
+void stop_timer(){
+    cli();
+    //set timer2 interrupt 
+    TCCR1A = 0;// set entire TCCR1A register to 0
+    TCCR1B = 0;// same for TCCR1B
+    TCCR1C = 0; // PWM related stuff
+    sei();
+
+}
+
+ISR(TIMER1_OVF) {
+   digitalWrite(13,HIGH);
+
+} 
 
 void displaySensorDetails(Adafruit_ADXL345_Unified &accel)
 {
@@ -158,8 +247,8 @@ volatile int rc_in_val[3] = {0};
 volatile unsigned long rc_rising_ts[3] = {0};
 bool flag_signal_loss = false;
 
-Servo flap;
-Servo esc;
+//Servo flap;
+//Servo esc;
 
 //note: measured dutycycle for futaba FHSS 13564us, 73Hz
 void rc_in_callback() {
@@ -313,9 +402,9 @@ void setup() {
     enableInterrupt( rc_in_pinno[i], rc_in_callback, CHANGE);
     enableInterrupt( xbee_rssi_pin, xbee_rssi_callback,CHANGE);
   }
-  Serial.println(REFRESH_INTERVAL);
-  flap.attach(8);
-  esc.attach(9);
+//  Serial.println(REFRESH_INTERVAL);
+//  flap.attach(8);
+//  esc.attach(9);
 
   // ---------------- MPU9240 init ---------------
   Wire.begin();
@@ -493,6 +582,8 @@ void setup() {
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
+  sCmd.addCommand("test",async_delay);
+  sCmd.addCommand("stop",stop_timer);
   
 }
 // ---------------- EKF ----------------
@@ -567,7 +658,7 @@ void kf_update_acc(float z){
   multiply(buff_row,HT,1,2,1,buff_single);
   
   // covariance of innovation, R = var of observation, calculated from gain variation
-  S = buff_single[0][0] + pow(0.25*x[1][0]*x[1][0],2);
+  S = buff_single[0][0] + pow(1*x[1][0]*x[1][0],2);
   
 
   // K = P HT S-1 ----------------------
@@ -623,8 +714,11 @@ void kf_update_mag(){
   // const from experiment
   // z = 0 = theta - c*omega + noise (This is when we trigger this update)
   H[0][0] = 1;
+  // from statistical experiment summary
   //H[0][1] = -0.0660225;
-  H[0][1] = 0;
+  //adjust based on performance evaluation
+  H[0][1] = -0.10768916;
+  //H[0][1] = 0;
   transpose(H,1,2,HT);
   multiply(H,x,1,2,1,buff_single);
 
@@ -686,7 +780,8 @@ unsigned long loop_ts;
 bool flag_reset_point = false;
 bool flag_led_on = false;
 bool flag_calibrated = false;
-
+bool flag_running = false;
+unsigned long last_mag_update_ts;
 void loop() {
   sCmd.readSerial();
   //block -- serial update
@@ -790,8 +885,8 @@ void loop() {
   static unsigned long rc_out_ts = millis();
   if ( (millis() - rc_out_ts) > (unsigned long) (1000 / float(rc_out_freq)) ) {
     rc_out_ts = millis();
-    flap.writeMicroseconds(map(rc_in_val[0], 1000, 2000, 260, 1260));
-    esc.writeMicroseconds(rc_in_val[1]);
+//    flap.writeMicroseconds(map(rc_in_val[0], 1000, 2000, 260, 1260));
+//    esc.writeMicroseconds(rc_in_val[1]);
   }
   // block ----
 
@@ -818,10 +913,10 @@ void loop() {
   // data processing and visualization
   kf_predict();
   // WARNING FIXME two acc not aligned, implement same algo used in reader.py
-  //float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
-  //if (x[1][0]>6.28){
-  //  kf_update_acc(delta_acc);
-  //}
+  float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
+  if (x[1][0]>2*pi){
+    //kf_update_acc(delta_acc);
+  }
 
   float m_norm = sqrt(myIMU.mx*myIMU.mx + myIMU.my*myIMU.my + myIMU.mz*myIMU.mz);
   // vec_mag dot (0,1,0) / mag_norm
@@ -830,29 +925,35 @@ void loop() {
   mag_hist[index] = lowfilter.output();
   index++;
   if (mag_hist[(index+3)%4]>mag_hist[(index+2)%4] && mag_hist[(index+2)%4]>mag_hist[(index+1)%4] && mag_hist[(index+1)%4]<mag_hist[(index)%4] && abs(mag_hist[(index+3)%4]-mag_hist[(index+1)%4])>0.1&&!flag_led_on){
-    flag_reset_point = true;
-    kf_update_mag();
+      flag_reset_point = true;
+      last_mag_update_ts = millis();
+      flag_running = true;
+      kf_update_mag();
+
+      // Setup LED to blink when azimuth = 0
+      if (!flash_in_progress){
+        flash_in_progress = true;
+        pending_action = LED_ON;
+
+        // time needed to travel 10 degrees, so that light will be on for 10 deg
+        on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
+        async_delay((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
+      }
+      Serial.print("omega = ");
+      Serial.print(x[1][0]);
+      Serial.print(" theta = ");
+      Serial.print(x[0][0]);
+      Serial.print("in ");
+      Serial.println((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
   }
   index%=4;
-
-  if (abs(x[0][0])<0.1){
-    digitalWrite(PIN_LED1,LOW);
-    digitalWrite(PIN_LED2,LOW);
-    digitalWrite(PIN_LED3,LOW);
-    led_off_ts = millis()+10;
-    flag_reset_point = true;
-    flag_led_on = true;
-  }
-
-
-  
 
   // machine readable output
   if (!human_readable_output){
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
 
-    
+    /*
     Serial.print('#');
 
     Serial.print(millis()-epoch);
@@ -879,24 +980,30 @@ void loop() {
 
     Serial.print(",");
     // unit: degree
+    kf_predict();
     long offset = (long)(x[0][0]/pi*180)/360*360;
-    Serial.println(x[0][0]/pi*180-offset);
+    Serial.print(x[0][0]/pi*180-offset);
+    Serial.print(",");
+    //unit: rev/s
+    Serial.println(x[1][0]/2.0/pi);
+    */
     
     flag_reset_point = false;
-   if (millis()>led_off_ts){
-        digitalWrite(PIN_LED1,HIGH);
-        digitalWrite(PIN_LED2,HIGH);
-        digitalWrite(PIN_LED3,HIGH);
-        flag_led_on = false;
-      }
     // limit transmission rate to 50Hz
     while (millis()-loop_ts < 20){
       delayMicroseconds(100);
-      if (millis()>led_off_ts){
-        digitalWrite(PIN_LED1,HIGH);
-        digitalWrite(PIN_LED2,HIGH);
-        digitalWrite(PIN_LED3,HIGH);
-        flag_led_on = false;
+
+      if (millis()-last_mag_update_ts>2000){
+        x[1][0] = 0;
+        x[0][0] = 0;
+        P[0][0] = 0;
+        P[1][0] = 0;
+        P[0][1] = 0;
+        P[1][1] = 0;
+        if (flag_running){
+          Serial.println("Stopped");
+          flag_running = false;
+        }
       }
     }
     //Serial.println(millis()-loop_ts);
