@@ -87,7 +87,7 @@ def main(screen, testStand, avionics):
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
         # a complete message has at least 62 bytes
-        if (avionics.in_waiting > 75 ):
+        if (avionics.in_waiting > 80 ):
             line = avionics.readline()
             # machine readable data start with #
             if (chr(line[0])=='#'):
@@ -100,7 +100,7 @@ def main(screen, testStand, avionics):
                     # sample parsing, need more work TODO
                     # remove prefix #, suffix \r\n 
                     data = [float(i) for i in line[1:-2].split(b',')]
-                    if (len(data)==11):
+                    if (len(data)==12):
                         # TODO complete the parsing
                         avionics_ts = data[0]
                         mx = data[1]
@@ -118,10 +118,12 @@ def main(screen, testStand, avionics):
                         acc2_z = data[9] 
                         acc2 = np.matrix(data[7:10]).T
 
-                        # rev/s from avionics
-                        custom = data[10] 
+                        # azimuth (degree) from avionics
+                        kf_azimuth = data[10] 
+                        # omega (rev/s) from avionics
+                        kf_omega = data[11] 
                         try:
-                            if (custom and omega is not None and azimuth is not None and omega>1):
+                            if (kf_azimuth and omega is not None and azimuth is not None and omega>1):
                                 mag_offset.append([omega, azimuth])
                                 screen.move(ymax-6,0)
                                 screen.clrtoeol()
@@ -264,10 +266,12 @@ def main(screen, testStand, avionics):
                     Ym[-1,1] = 0
 
                 Zm[-1,0] = testStand_ts/1000.0 # in second
-                Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
+                # mag angle dot product
+                #Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
+                Zm[-1,1] = kf_omega-omega
 
                 Cm[-1,0] = testStand_ts/1000.0 # in second
-                Cm[-1,1] = min(abs(int(custom) - int(azimuth)),360-abs(int(custom) - int(azimuth)))
+                Cm[-1,1] = min(abs(int(kf_azimuth) - int(azimuth)),360-abs(int(kf_azimuth) - int(azimuth)))
 
                 screen.addstr(ymax-5,0,str(Ym[-1,1]))
                 screen.refresh()
@@ -298,7 +302,7 @@ if __name__ == '__main__':
         win = pg.GraphicsWindow(title="Avionics Feed") # create a window
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot10 = win.addPlot(title="Mag angle",row=1,col=0,labels={'left':"dot",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot10 = win.addPlot(title="Omega difference",row=1,col=0,labels={'left':"d_omega(rev/s)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot11 = win.addPlot(title="angle difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
