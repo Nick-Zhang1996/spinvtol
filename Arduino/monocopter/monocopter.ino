@@ -130,6 +130,93 @@ ISR(TIMER1_OVF) {
 
 } 
 
+// Timers usage
+//timer0 -> Arduino millis() and delay()
+//timer1 -> compare A : LED phase indicator; compare B : servo actuation (modifies OCRA in Timer 2)
+// both ISR run their own action sequence command, A has 2 state (LED on/off), B has 4 state, (low, neutral, high, neutral)
+//timer2 -> synchronized multi-channel PWM, 244Hz duty cycle for servo control
+// if additional ISP are needed, 2B compare interrupt is still available, not sure about other timers
+
+
+void enablePWM(){
+    cli();//stop interrupts
+    //set timer2 interrupt 
+
+    TCCR2A = 0;// set entire TCCR2A register to 0
+    TCCR2B = 0;// same for TCCR2B
+    TCNT2  = 0;//initialize counter value to 0
+
+    // Set CS bits for 256 prescaler
+    // duty cycle: (16*10^6) / (256*256) Hz = 244Hz < 333Hz (servo max freq)
+    // per count time: 16us
+    TCCR2B |= (1 << CS21) | (1 << CS22) ; 
+
+    // set compare target, this controls the on-time of PWM
+    // for n% signal:
+    // OCR2A = (uint8_t) 256.0*onTime (fraction (0-1) );
+    // Note, OCR2A < 20 creates erratic behavior(on oscilloscope) worth investicating, it  does NOT set power to 0    
+    OCR2A = 47; // = 745us signal, neutral of DS3005HV servo
+
+
+    // enable timer compare interrupt and overflow interrupt
+    TIMSK2 |= (1 << OCIE2A) | ( 1 << TOIE2);
+
+    sei();//allow interrupts
+  
+}
+
+// to ensure safety of the servo, the servo should always be given an active, safe command
+void disablePWM(){
+  
+  
+  cli();//stop interrupts
+  //unset timer2 interrupt 
+  TCCR2A = 0;// set entire TCCR2A register to 0
+  TCCR2B = 0;// same for TCCR2B
+  TCNT2  = 0;//initialize counter value to 0
+  TIMSK2 = 0;
+
+  sei();//allow interrupts
+  
+}
+
+
+// https://www.arduino.cc/en/Reference/PortManipulation
+// Called at the falling edge of on-time, enter off-time configuration here
+ISR(TIMER2_COMPA_vect){
+// digital write takes ~6us to execute
+// inline assembly takes <1us
+// use with caution, though
+
+// D8
+    asm (
+      "cbi %0, %1 \n"
+      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB0)
+    );
+}
+
+// Beginning of each Duty Cycle, enter on-time configuration here
+ISR(TIMER2_OVF_vect){
+// D8
+    asm (
+      "sbi %0, %1 \n"
+      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTD0)
+    );
+}
+
+#define MAX_SERVO_PULSEWIDTH 930
+#define MIN_SERVO_PULSEWIDTH 560
+#define CENTRAL_SERVO_PULSEWIDTH 745
+
+void setPulseWidth(float us){
+    us = (us>MAX_SERVO_PULSEWIDTH)?MAX_SERVO_PULSEWIDTH:us;
+    us = (us<MIN_SERVO_PULSEWIDTH)?MIN_SERVO_PULSEWIDTH:us;
+
+    cli(); //XXX would this cause irratical behavior?
+    OCR2A = (uint8_t) us/16; // 16us per tick of clock
+    sei();
+}
+
 void displaySensorDetails(Adafruit_ADXL345_Unified &accel)
 {
   sensor_t sensor;
