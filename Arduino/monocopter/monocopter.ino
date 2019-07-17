@@ -5,10 +5,20 @@
 #define PIN_LED2 11
 #define PIN_LED3 12
 
+// action sequence for T1_COMPA
 #define NONE 0
 #define LED_OFF 1
 #define LED_ON 2
 
+// action sequence for T1_COMPB
+#define RISING_NEUTRAL 1
+#define SERVO_MAX 2
+#define FALLING_NEUTRAL 3
+#define SERVO_MIN 4
+
+#define MAX_SERVO_PULSEWIDTH 930
+#define MIN_SERVO_PULSEWIDTH 560
+#define CENTRAL_SERVO_PULSEWIDTH 745
 
 #define EI_ARDUINO_INTERRUPTED_PIN
 #include <EnableInterrupt.h>
@@ -58,24 +68,24 @@ const float pi = 3.1415926535898;
 // upon execution of the last command in sequence, the ISR should stop the timer/disable the ISR from undesirable
 // calls in the future. 
 
-// this will set ISR(TIMER1_COMPA_vect) to fire in specified delay
-void async_delay_t1(float ms){
-    cli();
+float ffmod(float x, float y){
+  int quotient = floor(x/y);
+  return x-y*quotient;
+}
 
-    //set timer2 interrupt 
+// init timer 1
+// in this setup, timer 1 will support two independent action sequence with arbitrary delay
+// between each action (max 4.19s)
+// this is achieved by setting COMPA and COMPB interrupt
+void timer1_init(){
+
+    //set timer1 interrupt 
     TCCR1A = 0;// set entire TCCR1A register to 0
     TCCR1B = 0;// same for TCCR1B
     TCCR1C = 0; // PWM related stuff
-    TIFR1 |= (1<<TOV1); // writing 1 to TOV1 clears the flag, preventing the ISR to be activated as soon as sei();
-
-
-    // enable timer compare interrupt and overflow interrupt
-    //TIMSK1 = (1 << OCIE1A) | ( 1 << TOIE1); // for reference, ovf interrupt
-    TIMSK1 = (1 << TOIE1);
-
-    uint16_t preload = 65536u - (ms/0.064);
-    TCNT1H  = highByte(preload);
-    TCNT1L  = lowByte(preload);
+    TIFR1 |= (1<<TOV1) | (1<<OCF1B) | (1<<OCF1A); // writing 1 to TOV1 clears the flag, preventing the ISR to be activated as soon as sei();
+    TCNT1 = 0;
+    // TODO clear action sequence next_action=NONE to prevent accident triggering
 
     // prescaler: 1024
     // duty cycle: (16*10^6) / (1024*65536) Hz = 0.238Hz (4.19s)
@@ -83,30 +93,52 @@ void async_delay_t1(float ms){
     // this starts counting
     TCCR1B |= (1 << CS12) | (1 << CS10) ; 
 
+    // enable timer compare interrupt and overflow interrupt
+    //TIMSK1 = (1 << OCIE1A) | ( 1 << TOIE1); // for reference, ovf interrupt
+    //TIMSK1 = (1 << TOIE1);
+
+
+
+}
+
+// this will set ISR(TIMER1_COMPA_vect) to fire in specified delay
+// the ISR will determine the proper action to take depending on the value in pending_action
+void next_action_t1a(float ms){
+
+    // if we need to take next action immediately, 
+    // we have to allow a time for exit out of thie function and ISR
+    // to enter this state would require a sudden change of control phase of around -90deg
+    uint16_t ticks = TCNT1 + max(ms/0.064,2);
+
+
+    cli();// is this really necessary?
+
+    OCR1A  = ticks;
+
     sei();
 
 }
 
-volatile byte pending_action = NONE;
+volatile byte pending_action_t1a = NONE;
 volatile bool flash_in_progress = false;
-volatile float on_time_ms;
-ISR(TIMER1_OVF_vect) {
-    switch (pending_action){
+volatile float on_time_ms = 500;
+ISR(TIMER1_COMPA_vect) {
+    switch (pending_action_t1a){
 
         case LED_ON:
             digitalWrite(PIN_LED1,LOW);
             digitalWrite(PIN_LED2,LOW);
             digitalWrite(PIN_LED3,LOW);
-            pending_action = LED_OFF;
-            async_delay_t1(on_time_ms);
+            pending_action_t1a = LED_OFF;
+            next_action_t1a(on_time_ms);
             break;
 
         case LED_OFF:
             digitalWrite(PIN_LED1,HIGH);
             digitalWrite(PIN_LED2,HIGH);
             digitalWrite(PIN_LED3,HIGH);
-            pending_action  = NONE;
-            stop_timer();
+            pending_action_t1a  = NONE;
+            disable_t1a();
             flash_in_progress = false;
             break;
 
@@ -115,7 +147,90 @@ ISR(TIMER1_OVF_vect) {
     }
 } 
 
-void stop_timer(){
+
+// this will set ISR(TIMER1_COMPB_vect) to fire in specified delay
+// the ISR will determine the proper action to take depending on the value in pending_action
+void next_action_t1b(float ms){
+
+    // if we need to take next action immediately, 
+    // we have to allow a time for exit out of thie function and ISR
+    // to enter this state would require a sudden change of control phase of around -90deg
+    uint16_t ticks = TCNT1 + max(ms/0.064,2);
+//    Serial.print("ms = ");
+//    Serial.print(ms);
+//    Serial.print("ticks = ");
+//    Serial.println(ticks);
+    cli();// is this really necessary?
+
+    OCR1B  = ticks;
+
+    sei();
+
+}
+
+// ctrl_phase: phase to START command to max deflection
+volatile float ctrl_phase;
+// 0:azimuth, rad; 1:omega, rad/s
+volatile float state_buffer[2];
+// micros()
+volatile uint16_t state_buffer_ts;
+// ms to next control phase, time between each new ISR
+volatile float quarter_period;
+volatile float current_phase;
+volatile int pending_action_t1b = NONE;
+ISR(TIMER1_COMPB_vect) {
+  //Serial.print("COMPB = ");
+  //Serial.print(pending_action_t1b);
+
+  switch(pending_action_t1b){
+
+      case RISING_NEUTRAL:
+          //Serial.println("RISING_NEUTRAL");
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          pending_action_t1b = SERVO_MAX;
+          // adjust control phase to sync with estimated state
+          // 500 = 2(for 2pi) * 1000 (sec -> ms) / 4 (quarter period)
+          quarter_period = 500.0*pi/state_buffer[1];
+          current_phase = state_buffer[0] + ffmod(TCNT1-state_buffer_ts,65536)*6.4e-5*state_buffer[1];
+          // make sure next_action_t1b gets a positive delay time
+          // experiment shows roughly 1ms error(at 6rev/s) due to processing time,which results in a ~26ms correction periodically, not sure what to do
+          next_action_t1b((ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1])*1000);
+          //next_action_t1b(quarter_period);
+          break;
+          
+      case SERVO_MAX:
+          //Serial.println("SERVO_MAX");
+          setPulseWidth(MAX_SERVO_PULSEWIDTH);
+          pending_action_t1b = FALLING_NEUTRAL;
+          next_action_t1b(quarter_period);
+          break;
+
+      case FALLING_NEUTRAL:
+          //Serial.println("FALLING_NEUTRAL");
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          pending_action_t1b = SERVO_MIN;
+          next_action_t1b(quarter_period);
+          break;
+
+      case SERVO_MIN:
+          //Serial.println("SERVO_MIN");
+          setPulseWidth(MIN_SERVO_PULSEWIDTH);
+          pending_action_t1b  = RISING_NEUTRAL;
+          next_action_t1b(quarter_period);
+          break;
+
+      case NONE:
+          //Serial.println("none");
+          break;
+
+      default:
+          //Serial.println("default");
+          break;
+  }
+  //Serial.println("done");
+} 
+
+void stop_timer1(){
     cli();
     //set timer2 interrupt 
     TCCR1A = 0;// set entire TCCR1A register to 0
@@ -125,42 +240,32 @@ void stop_timer(){
 
 }
 
-// this will set ISR(TIMER1_OVF_vect) to fire in specified delay
-void async_delay_t2(float ms){
+void enable_t1a(){
+
     cli();
-
-    //set timer2 interrupt 
-    TCCR1A = 0;// set entire TCCR1A register to 0
-    TCCR1B = 0;// same for TCCR1B
-    TCCR1C = 0; // PWM related stuff
-    TIFR1 |= (1<<TOV1); // writing 1 to TOV1 clears the flag, preventing the ISR to be activated as soon as sei();
-
-
-    // enable timer compare interrupt and overflow interrupt
-    //TIMSK1 = (1 << OCIE1A) | ( 1 << TOIE1); // for reference, ovf interrupt
-    TIMSK1 = (1 << TOIE1);
-
-    uint16_t preload = 65536u - (ms/0.064);
-    TCNT1H  = highByte(preload);
-    TCNT1L  = lowByte(preload);
-
-    // prescaler: 1024
-    // duty cycle: (16*10^6) / (1024*65536) Hz = 0.238Hz (4.19s)
-    // per count : 64us
-    // this starts counting
-    TCCR1B |= (1 << CS12) | (1 << CS10) ; 
-
+    TIMSK1 |= (1 << OCIE1A);
     sei();
-
 }
-// Timers usage
-//timer0 -> Arduino millis() and delay()
-//timer1 -> compare A : LED phase indicator; compare B : servo actuation (modifies OCRA in Timer 2)
-// both ISR run their own action sequence command, A has 2 state (LED on/off), B has 4 state, (low, neutral, high, neutral)
-//timer2 -> synchronized multi-channel PWM, 244Hz duty cycle for servo control
-// if additional ISP are needed, 2B compare interrupt is still available, not sure about other timers
 
+void enable_t1b(){
+    cli();
+    TIMSK1 |= (1 << OCIE1B); 
+    sei();
+}
 
+void disable_t1a(){
+    cli();
+    TIMSK1 &= (0 << OCIE1A);
+    sei();
+}
+
+void disable_t1b(){
+    cli();
+    TIMSK1 &= (0 << OCIE1B); 
+    sei();
+}
+
+// timer2_init
 void enablePWM(){
     cli();//stop interrupts
     //set timer2 interrupt 
@@ -216,6 +321,11 @@ ISR(TIMER2_COMPA_vect){
       "cbi %0, %1 \n"
       : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB0)
     );
+// D13 - B5
+    asm (
+      "cbi %0, %1 \n"
+      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB5)
+    );
 }
 
 // Beginning of each Duty Cycle, enter on-time configuration here
@@ -225,18 +335,27 @@ ISR(TIMER2_OVF_vect){
       "sbi %0, %1 \n"
       : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTD0)
     );
+// D13
+    asm (
+      "sbi %0, %1 \n"
+      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB5)
+    );
+
 }
 
-#define MAX_SERVO_PULSEWIDTH 930
-#define MIN_SERVO_PULSEWIDTH 560
-#define CENTRAL_SERVO_PULSEWIDTH 745
+
+
+float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 void setPulseWidth(float us){
     us = (us>MAX_SERVO_PULSEWIDTH)?MAX_SERVO_PULSEWIDTH:us;
     us = (us<MIN_SERVO_PULSEWIDTH)?MIN_SERVO_PULSEWIDTH:us;
-
+    //Serial.print("pulsewidth set=");
+    //Serial.println((uint8_t) (us/16));
     cli(); //XXX would this cause irratical behavior?
-    OCR2A = (uint8_t) us/16; // 16us per tick of clock
+    OCR2A = (uint8_t) (us/16); // 16us per tick of clock
     sei();
 }
 
@@ -692,7 +811,6 @@ void setup() {
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
-  sCmd.addCommand("test",async_delay_t1);
   
 }
 // ---------------- EKF ----------------
@@ -890,6 +1008,7 @@ bool flag_reset_point = false;
 bool flag_led_on = false;
 bool flag_calibrated = false;
 bool flag_running = false;
+bool flag_servo_protect = false;
 unsigned long last_mag_update_ts;
 void loop() {
   sCmd.readSerial();
@@ -1033,22 +1152,51 @@ void loop() {
   lowfilter.input(dot);
   mag_hist[index] = lowfilter.output();
   index++;
+
+  // magnetic update
   if (mag_hist[(index+3)%4]>mag_hist[(index+2)%4] && mag_hist[(index+2)%4]>mag_hist[(index+1)%4] && mag_hist[(index+1)%4]<mag_hist[(index)%4] && abs(mag_hist[(index+3)%4]-mag_hist[(index+1)%4])>0.1&&!flag_led_on){
       flag_reset_point = true;
       last_mag_update_ts = millis();
       flag_running = true;
       kf_update_mag();
+
+      if (x[1][0]>2*pi*8){
+        Serial.println(F("Warning: omega too high"));
+        flag_servo_protect = true;
+        disable_t1b();
+        setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+      } else if (x[1][0]<2*pi) {
+        Serial.println(F("Omega too low, servo disabled"));
+        flag_servo_protect = true;
+        disable_t1b();
+        setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+        
+      } else {
+        if (flag_servo_protect){
+          Serial.println(F("Resume Servo Control"));
+          flag_servo_protect = false;
+          pending_action_t1b = 
+          enable_t1b();
+        }
+
+        cli();
+        state_buffer_ts = TCNT1;
+        state_buffer[0] = x[0][0];
+        state_buffer[1] = x[1][0];
+        sei();
+      }
+
       //Serial.print("mag update--");
 
       // Setup LED to blink when azimuth = 0
       if (!flash_in_progress){
         flash_in_progress = true;
         //Serial.println("light on");
-        pending_action = LED_ON;
+        pending_action_t1a = LED_ON;
 
         // time needed to travel 10 degrees, so that light will be on for 10 deg
         on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
-        async_delay_t1((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
+        next_action_t1a((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
       }
 /*
       Serial.print("omega = ");

@@ -63,6 +63,7 @@ void timer1_init(){
 
 // this will set ISR(TIMER1_COMPA_vect) to fire in specified delay
 // the ISR will determine the proper action to take depending on the value in pending_action
+//WARNING this may ceize
 void next_action_t1a(float ms){
 
     uint16_t ticks = TCNT1 + (ms/0.064);
@@ -109,16 +110,15 @@ ISR(TIMER1_COMPA_vect) {
 // the ISR will determine the proper action to take depending on the value in pending_action
 void next_action_t1b(float ms){
 
-    uint16_t ticks = TCNT1 + (ms/0.064);
-//    Serial.print("ms = ");
-//    Serial.print(ms);
-//    Serial.print("ticks = ");
-//    Serial.println(ticks);
+    // if we need to take next action immediately, 
+    // we have to allow a time for exit out of thie function and ISR
+    // to enter this state would require a sudden change of control phase of around -90deg
+    uint16_t ticks = TCNT1 + max(ms/0.064,2);
+
     cli();// is this really necessary?
-
     OCR1B  = ticks;
-
     sei();
+    
 
 }
 
@@ -147,8 +147,11 @@ ISR(TIMER1_COMPB_vect) {
           quarter_period = 500.0*pi/state_buffer[1];
           current_phase = state_buffer[0] + ffmod(TCNT1-state_buffer_ts,65536)*6.4e-5*state_buffer[1];
           // make sure next_action_t1b gets a positive delay time
-          //next_action_t1b(ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1]);
-          next_action_t1b(quarter_period);
+          //Serial.print("du(ms)=");
+          //Serial.println(quarter_period-ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1]*1000);
+          // experiment shows roughly 1ms error due to processing time,which results in a ~26ms correction periodically, not sure what to do
+          next_action_t1b((ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1])*1000);
+          //next_action_t1b(quarter_period);
           break;
           
       case SERVO_MAX:
@@ -319,7 +322,7 @@ void setup() {
     //rad
     state_buffer[0] = 0;
     // rad/s
-    state_buffer[1] = 2*pi*6;
+    state_buffer[1] = 2*pi;
     state_buffer_ts = micros();
     timer1_init();
     //enable_t1a();
