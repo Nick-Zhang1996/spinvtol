@@ -9,9 +9,9 @@
 #define LED_ON 2
 
 #define RISING_NEUTRAL 1
-#define FALLING_NEUTRAL 2
-#define SERVO_MIN 3
-#define SERVO_MAX 4
+#define FALLING_NEUTRAL 3
+#define SERVO_MIN 4
+#define SERVO_MAX 2
 
 #define PIN_LED1 10
 #define PIN_LED2 11
@@ -21,9 +21,10 @@
 #define MIN_SERVO_PULSEWIDTH 560
 #define CENTRAL_SERVO_PULSEWIDTH 745
 
-#define MAX_SERVO_PULSEWIDTH 3000
-#define MIN_SERVO_PULSEWIDTH 100
-#define CENTRAL_SERVO_PULSEWIDTH 1500
+// for testing PWM output on LEDs
+//#define MAX_SERVO_PULSEWIDTH 3000
+//#define MIN_SERVO_PULSEWIDTH 100
+//#define CENTRAL_SERVO_PULSEWIDTH 1500
 
 const float pi = 3.1415926535898;
 
@@ -109,10 +110,10 @@ ISR(TIMER1_COMPA_vect) {
 void next_action_t1b(float ms){
 
     uint16_t ticks = TCNT1 + (ms/0.064);
-    Serial.print("ms = ");
-    Serial.print(ms);
-    Serial.print("ticks = ");
-    Serial.println(ticks);
+//    Serial.print("ms = ");
+//    Serial.print(ms);
+//    Serial.print("ticks = ");
+//    Serial.println(ticks);
     cli();// is this really necessary?
 
     OCR1B  = ticks;
@@ -126,69 +127,60 @@ volatile float ctrl_phase;
 // 0:azimuth, rad; 1:omega, rad/s
 volatile float state_buffer[2];
 // micros()
-volatile unsigned long state_buffer_ts;
+volatile uint16_t state_buffer_ts;
 // ms to next control phase, time between each new ISR
 volatile float quarter_period;
-
+volatile float current_phase;
 volatile int pending_action_t1b = NONE;
-volatile bool led_is_on = false;
 ISR(TIMER1_COMPB_vect) {
-  if (led_is_on){
-    digitalWrite(13,LOW);
-  } else {
-    digitalWrite(13,HIGH);
-  }
-  led_is_on = !led_is_on;
-  Serial.print("COMPA, action= ");
-  Serial.print(pending_action_t1b);
+  //Serial.print("COMPB = ");
+  //Serial.print(pending_action_t1b);
 
   switch(pending_action_t1b){
-      case SERVO_MAX:
-          Serial.println("SERVO_MAX");
-          //setPulseWidth(MAX_SERVO_PULSEWIDTH);
-          pending_action_t1b = 2;
-          //next_action_t1b(quarter_period);
-          break;
+
       case RISING_NEUTRAL:
-          Serial.println("RISING_NEUTRAL");
-          //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          //Serial.println("RISING_NEUTRAL");
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           pending_action_t1b = SERVO_MAX;
           // adjust control phase to sync with estimated state
           // 500 = 2(for 2pi) * 1000 (sec -> ms) / 4 (quarter period)
           quarter_period = 500.0*pi/state_buffer[1];
-          float current_phase = state_buffer[0] + float(micros()-state_buffer_ts)/1e6*state_buffer[1];
+          current_phase = state_buffer[0] + ffmod(TCNT1-state_buffer_ts,65536)*6.4e-5*state_buffer[1];
           // make sure next_action_t1b gets a positive delay time
           //next_action_t1b(ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1]);
-          //next_action_t1b(quarter_period);
-
-          Serial.print("quarter_period");
-          Serial.println(quarter_period);
+          next_action_t1b(quarter_period);
+          break;
+          
+      case SERVO_MAX:
+          //Serial.println("SERVO_MAX");
+          setPulseWidth(MAX_SERVO_PULSEWIDTH);
+          pending_action_t1b = FALLING_NEUTRAL;
+          next_action_t1b(quarter_period);
           break;
 
-
-
       case FALLING_NEUTRAL:
-          Serial.println("FALLING_NEUTRAL");
-          //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          //Serial.println("FALLING_NEUTRAL");
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           pending_action_t1b = SERVO_MIN;
-          //next_action_t1b(quarter_period);
+          next_action_t1b(quarter_period);
           break;
 
       case SERVO_MIN:
-          Serial.println("SERVO_MIN");
-          //setPulseWidth(MIN_SERVO_PULSEWIDTH);
+          //Serial.println("SERVO_MIN");
+          setPulseWidth(MIN_SERVO_PULSEWIDTH);
           pending_action_t1b  = RISING_NEUTRAL;
-          //next_action_t1b(quarter_period);
+          next_action_t1b(quarter_period);
           break;
 
       case NONE:
-          Serial.println("none");
+          //Serial.println("none");
           break;
 
       default:
-          Serial.println("default");
+          //Serial.println("default");
+          break;
   }
-  Serial.println("done");
+  //Serial.println("done");
 } 
 
 void stop_timer1(){
@@ -209,7 +201,6 @@ void enable_t1a(){
 }
 
 void enable_t1b(){
-    pending_action_t1b = RISING_NEUTRAL;
     cli();
     TIMSK1 |= (1 << OCIE1B); 
     sei();
@@ -226,7 +217,8 @@ void disable_t1b(){
     TIMSK1 &= (0 << OCIE1B); 
     sei();
 }
-    
+
+// timer2_init
 void enablePWM(){
     cli();//stop interrupts
     //set timer2 interrupt 
@@ -283,10 +275,10 @@ ISR(TIMER2_COMPA_vect){
       : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB0)
     );
 // D13 - B5
-//    asm (
-//      "cbi %0, %1 \n"
-//      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB5)
-//    );
+    asm (
+      "cbi %0, %1 \n"
+      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB5)
+    );
 }
 
 // Beginning of each Duty Cycle, enter on-time configuration here
@@ -297,10 +289,10 @@ ISR(TIMER2_OVF_vect){
       : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTD0)
     );
 // D13
-//    asm (
-//      "sbi %0, %1 \n"
-//      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB5)
-//    );
+    asm (
+      "sbi %0, %1 \n"
+      : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB5)
+    );
 
 }
 
@@ -313,8 +305,8 @@ float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
 void setPulseWidth(float us){
     us = (us>MAX_SERVO_PULSEWIDTH)?MAX_SERVO_PULSEWIDTH:us;
     us = (us<MIN_SERVO_PULSEWIDTH)?MIN_SERVO_PULSEWIDTH:us;
-    Serial.print("pulsewidth set=");
-    Serial.println((uint8_t) (us/16));
+    //Serial.print("pulsewidth set=");
+    //Serial.println((uint8_t) (us/16));
     cli(); //XXX would this cause irratical behavior?
     OCR2A = (uint8_t) (us/16); // 16us per tick of clock
     sei();
@@ -324,13 +316,16 @@ void setup() {
     Serial.begin(115200);
     pinMode(13,OUTPUT);
     pinMode(8,OUTPUT);
-
+    //rad
     state_buffer[0] = 0;
-    state_buffer[1] = 2*pi;
+    // rad/s
+    state_buffer[1] = 2*pi*6;
     state_buffer_ts = micros();
     timer1_init();
     //enable_t1a();
     enable_t1b();
+    pending_action_t1b = RISING_NEUTRAL;
+    next_action_t1b(1);
     enablePWM();
 }
 
