@@ -58,8 +58,8 @@ const float pi = 3.1415926535898;
 // upon execution of the last command in sequence, the ISR should stop the timer/disable the ISR from undesirable
 // calls in the future. 
 
-// this will set ISR(TIMER1_OVF_vect) to fire in specified delay
-void async_delay(float ms){
+// this will set ISR(TIMER1_COMPA_vect) to fire in specified delay
+void async_delay_t1(float ms){
     cli();
 
     //set timer2 interrupt 
@@ -98,7 +98,7 @@ ISR(TIMER1_OVF_vect) {
             digitalWrite(PIN_LED2,LOW);
             digitalWrite(PIN_LED3,LOW);
             pending_action = LED_OFF;
-            async_delay(on_time_ms);
+            async_delay_t1(on_time_ms);
             break;
 
         case LED_OFF:
@@ -125,11 +125,34 @@ void stop_timer(){
 
 }
 
-ISR(TIMER1_OVF) {
-   digitalWrite(13,HIGH);
+// this will set ISR(TIMER1_OVF_vect) to fire in specified delay
+void async_delay_t2(float ms){
+    cli();
 
-} 
+    //set timer2 interrupt 
+    TCCR1A = 0;// set entire TCCR1A register to 0
+    TCCR1B = 0;// same for TCCR1B
+    TCCR1C = 0; // PWM related stuff
+    TIFR1 |= (1<<TOV1); // writing 1 to TOV1 clears the flag, preventing the ISR to be activated as soon as sei();
 
+
+    // enable timer compare interrupt and overflow interrupt
+    //TIMSK1 = (1 << OCIE1A) | ( 1 << TOIE1); // for reference, ovf interrupt
+    TIMSK1 = (1 << TOIE1);
+
+    uint16_t preload = 65536u - (ms/0.064);
+    TCNT1H  = highByte(preload);
+    TCNT1L  = lowByte(preload);
+
+    // prescaler: 1024
+    // duty cycle: (16*10^6) / (1024*65536) Hz = 0.238Hz (4.19s)
+    // per count : 64us
+    // this starts counting
+    TCCR1B |= (1 << CS12) | (1 << CS10) ; 
+
+    sei();
+
+}
 // Timers usage
 //timer0 -> Arduino millis() and delay()
 //timer1 -> compare A : LED phase indicator; compare B : servo actuation (modifies OCRA in Timer 2)
@@ -669,7 +692,7 @@ void setup() {
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
-  sCmd.addCommand("test",async_delay);
+  sCmd.addCommand("test",async_delay_t1);
   
 }
 // ---------------- EKF ----------------
@@ -1025,7 +1048,7 @@ void loop() {
 
         // time needed to travel 10 degrees, so that light will be on for 10 deg
         on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
-        async_delay((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
+        async_delay_t1((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
       }
 /*
       Serial.print("omega = ");
