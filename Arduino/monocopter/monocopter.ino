@@ -1,9 +1,12 @@
 // monocopter controller
 // Nick Zhang 2019
 
+// 3 red led array
 #define PIN_LED1 10
 #define PIN_LED2 11
 #define PIN_LED3 12
+// blue
+#define PIN_LED4 9
 
 // action sequence for T1_COMPA
 #define NONE 0
@@ -95,8 +98,7 @@ void timer1_init(){
 
     // enable timer compare interrupt and overflow interrupt
     //TIMSK1 = (1 << OCIE1A) | ( 1 << TOIE1); // for reference, ovf interrupt
-    //TIMSK1 = (1 << TOIE1);
-
+    TIMSK1 = 0;
 
 
 }
@@ -121,14 +123,16 @@ void next_action_t1a(float ms){
 
 volatile byte pending_action_t1a = NONE;
 volatile bool flash_in_progress = false;
-volatile float on_time_ms = 500;
+volatile float on_time_ms = 10;
 ISR(TIMER1_COMPA_vect) {
+    
     switch (pending_action_t1a){
 
         case LED_ON:
             digitalWrite(PIN_LED1,LOW);
             digitalWrite(PIN_LED2,LOW);
             digitalWrite(PIN_LED3,LOW);
+            Serial.println("ISR led on");
             pending_action_t1a = LED_OFF;
             next_action_t1a(on_time_ms);
             break;
@@ -138,11 +142,12 @@ ISR(TIMER1_COMPA_vect) {
             digitalWrite(PIN_LED2,HIGH);
             digitalWrite(PIN_LED3,HIGH);
             pending_action_t1a  = NONE;
-            disable_t1a();
             flash_in_progress = false;
+            Serial.println("ISR led off");
             break;
 
         case NONE:
+            Serial.println("ISR NONE");
             break;
     }
 } 
@@ -177,7 +182,7 @@ volatile uint16_t state_buffer_ts;
 // ms to next control phase, time between each new ISR
 volatile float quarter_period;
 volatile float current_phase;
-volatile int pending_action_t1b = NONE;
+volatile int pending_action_t1b = RISING_NEUTRAL;
 ISR(TIMER1_COMPB_vect) {
   //Serial.print("COMPB = ");
   //Serial.print(pending_action_t1b);
@@ -191,9 +196,10 @@ ISR(TIMER1_COMPB_vect) {
           // adjust control phase to sync with estimated state
           // 500 = 2(for 2pi) * 1000 (sec -> ms) / 4 (quarter period)
           quarter_period = 500.0*pi/state_buffer[1];
+          //Serial.println(quarter_period);
           current_phase = state_buffer[0] + ffmod(TCNT1-state_buffer_ts,65536)*6.4e-5*state_buffer[1];
           // make sure next_action_t1b gets a positive delay time
-          // experiment shows roughly 1ms error(at 6rev/s) due to processing time,which results in a ~26ms correction periodically, not sure what to do
+          // experiment shows roughly 1ms error(at 5rev/s) due to processing time,which results in a ~26ms correction periodically, not sure what to do
           next_action_t1b((ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1])*1000);
           //next_action_t1b(quarter_period);
           break;
@@ -201,6 +207,11 @@ ISR(TIMER1_COMPB_vect) {
       case SERVO_MAX:
           //Serial.println("SERVO_MAX");
           setPulseWidth(MAX_SERVO_PULSEWIDTH);
+          // D9, blue LED, low enable
+              asm (
+                "cbi %0, %1 \n"
+                : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB1)
+              );
           pending_action_t1b = FALLING_NEUTRAL;
           next_action_t1b(quarter_period);
           break;
@@ -208,6 +219,11 @@ ISR(TIMER1_COMPB_vect) {
       case FALLING_NEUTRAL:
           //Serial.println("FALLING_NEUTRAL");
           setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          // D9, blue LED
+              asm (
+                "sbi %0, %1 \n"
+                : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB1)
+              );
           pending_action_t1b = SERVO_MIN;
           next_action_t1b(quarter_period);
           break;
@@ -248,6 +264,7 @@ void enable_t1a(){
 }
 
 void enable_t1b(){
+
     cli();
     TIMSK1 |= (1 << OCIE1B); 
     sei();
@@ -255,13 +272,13 @@ void enable_t1b(){
 
 void disable_t1a(){
     cli();
-    TIMSK1 &= (0 << OCIE1A);
+    TIMSK1 &= ~(1 << OCIE1A);
     sei();
 }
 
 void disable_t1b(){
     cli();
-    TIMSK1 &= (0 << OCIE1B); 
+    TIMSK1 &= ~(1 << OCIE1B); 
     sei();
 }
 
@@ -354,7 +371,7 @@ void setPulseWidth(float us){
     us = (us<MIN_SERVO_PULSEWIDTH)?MIN_SERVO_PULSEWIDTH:us;
     //Serial.print("pulsewidth set=");
     //Serial.println((uint8_t) (us/16));
-    cli(); //XXX would this cause irratical behavior?
+    cli(); //TODO would this cause irratical behavior?
     OCR2A = (uint8_t) (us/16); // 16us per tick of clock
     sei();
 }
@@ -791,9 +808,11 @@ void setup() {
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
   pinMode(PIN_LED3, OUTPUT);
+  pinMode(PIN_LED4, OUTPUT);
   digitalWrite(PIN_LED1,HIGH);
   digitalWrite(PIN_LED2,HIGH);
   digitalWrite(PIN_LED3,HIGH);
+  digitalWrite(PIN_LED4,HIGH);
 
   pinMode(synchro_pinno,OUTPUT);
   digitalWrite(synchro_pinno,HIGH);
@@ -811,6 +830,11 @@ void setup() {
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
+
+  timer1_init();
+  enable_t1a();
+  enable_t1b();
+  enablePWM();
   
 }
 // ---------------- EKF ----------------
@@ -820,8 +844,10 @@ void setup() {
 matrix x[2][1],F[2][2],FT[2][2],P[2][2],Q[2][2],H[1][2],HT[2][1];
 float S;
 
-// unit: rad/s2, this is a rough estimate, need to see video footage, of actual monocopter
+// unit: (rad/s2)^2, this is a rough estimate, need to see video footage, of actual monocopter
 const float acc_variance=10.0;
+// experiment shows 60 deg variation for 4sigma(95% ish) -> convert to 1 sigma in rad:pow(0.2618,2)
+const float mag_variance= pow(0.2618,2);
 
 void kf_predict(){
   static unsigned long last_update = millis();
@@ -959,8 +985,7 @@ void kf_update_mag(){
   multiply(buff_row,HT,1,2,1,buff_single);
   
   // covariance of innovation
-  // R = experiment shows 60 deg variation for 4sigma(95% ish) -> convert to 1 sigma in rad
-  S = buff_single[0][0] + pow(0.2618,2);
+  S = buff_single[0][0] + mag_variance;
   //Serial.print("S :");
   //Serial.println(S);
   //mtxprint(P,2,2,"P");
@@ -1160,22 +1185,26 @@ void loop() {
       flag_running = true;
       kf_update_mag();
 
+      // servo actuation/buffered phase update
       if (x[1][0]>2*pi*8){
         Serial.println(F("Warning: omega too high"));
         flag_servo_protect = true;
         disable_t1b();
         setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+        digitalWrite(PIN_LED4,HIGH);
       } else if (x[1][0]<2*pi) {
         Serial.println(F("Omega too low, servo disabled"));
         flag_servo_protect = true;
         disable_t1b();
         setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
-        
+        digitalWrite(PIN_LED4,HIGH);
       } else {
+        // suitable omega for control
         if (flag_servo_protect){
+          // disable ''failsafe''
           Serial.println(F("Resume Servo Control"));
           flag_servo_protect = false;
-          pending_action_t1b = 
+          pending_action_t1b = RISING_NEUTRAL;
           enable_t1b();
         }
 
@@ -1187,16 +1216,31 @@ void loop() {
       }
 
       //Serial.print("mag update--");
-
+              Serial.print("OCIE1A?");
+        Serial.println( TIMSK1 & (1<<OCIE1A));
       // Setup LED to blink when azimuth = 0
       if (!flash_in_progress){
-        flash_in_progress = true;
-        //Serial.println("light on");
-        pending_action_t1a = LED_ON;
-
         // time needed to travel 10 degrees, so that light will be on for 10 deg
         on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
-        next_action_t1a((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
+        float t1a_delay = (2*pi-ffmod(x[0][0],2*pi))/x[1][0]*1000.0;
+        if (t1a_delay>0){
+          flash_in_progress = true;
+          pending_action_t1a = LED_ON;
+          enable_t1a();
+          next_action_t1a(t1a_delay);
+          Serial.println(F("LED on in- "));
+          Serial.println(t1a_delay);
+        } else {
+          Serial.print("neg omega - ");
+          Serial.println(t1a_delay);
+        }
+      } else {
+        Serial.print("flash blk");
+//        Serial.print(" OCR1A ");
+//        Serial.print(OCR1A);
+//        Serial.print(" TCNT1 ");
+//        Serial.println(TCNT1);
+
       }
 /*
       Serial.print("omega = ");
@@ -1240,6 +1284,7 @@ void loop() {
 
     Serial.print(",");
     // unit: degree
+    // may not need
     kf_predict();
     long offset = (long)(x[0][0]/pi*180)/360*360;
     Serial.print(x[0][0]/pi*180-offset);
@@ -1262,6 +1307,11 @@ void loop() {
         if (flag_running){
           Serial.println("Stopped");
           flag_running = false;
+          Serial.println(F("servo disabled"));
+          flag_servo_protect = true;
+          disable_t1b();
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          digitalWrite(PIN_LED4,HIGH);
         }
       }
     }
