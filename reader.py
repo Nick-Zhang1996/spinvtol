@@ -268,10 +268,12 @@ def main(screen, testStand, avionics):
                 Zm[-1,0] = testStand_ts/1000.0 # in second
                 # mag angle dot product
                 #Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
-                Zm[-1,1] = kf_omega-omega
+                Zm[-1,1] = kf_omega
 
                 Cm[-1,0] = testStand_ts/1000.0 # in second
-                Cm[-1,1] = min(abs(int(kf_azimuth) - int(azimuth)),360-abs(int(kf_azimuth) - int(azimuth)))
+                # angle diff
+                #Cm[-1,1] = min(abs(int(kf_azimuth) - int(azimuth)),360-abs(int(kf_azimuth) - int(azimuth)))
+                Cm[-1,1] = kf_omega - omega
 
                 screen.addstr(ymax-5,0,str(Ym[-1,1]))
                 screen.refresh()
@@ -302,13 +304,13 @@ if __name__ == '__main__':
         win = pg.GraphicsWindow(title="Avionics Feed") # create a window
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot10 = win.addPlot(title="Omega difference",row=1,col=0,labels={'left':"d_omega(rev/s)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot11 = win.addPlot(title="angle difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot10 = win.addPlot(title="Estimated Omega",row=1,col=0,labels={'left':"omega(rev/s)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot11 = win.addPlot(title="omega difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)
         curve2 = plot10.plot()                        # create an empty "plot" (a curve to plot)
         curve3 = plot11.plot()                        # create an empty "plot" (a curve to plot)
-        plot11.setYRange(0,180)
+        #plot11.setYRange(0,180)
 
         windowWidth = 200                       # width of the window displaying the curve
         Xm = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
