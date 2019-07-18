@@ -7,6 +7,7 @@
 #define PIN_LED3 12
 // blue
 #define PIN_LED4 9
+#define PIN_SERVO 8
 
 // action sequence for T1_COMPA
 #define NONE 0
@@ -328,6 +329,7 @@ void disablePWM(){
 
 // https://www.arduino.cc/en/Reference/PortManipulation
 // Called at the falling edge of on-time, enter off-time configuration here
+// TODO would probably benefit from PWM mode
 ISR(TIMER2_COMPA_vect){
 // digital write takes ~6us to execute
 // inline assembly takes <1us
@@ -809,6 +811,7 @@ void setup() {
   pinMode(PIN_LED2, OUTPUT);
   pinMode(PIN_LED3, OUTPUT);
   pinMode(PIN_LED4, OUTPUT);
+  pinMode(PIN_SERVO,OUTPUT);
   digitalWrite(PIN_LED1,HIGH);
   digitalWrite(PIN_LED2,HIGH);
   digitalWrite(PIN_LED3,HIGH);
