@@ -17,6 +17,8 @@
 #define PIN_LED2 11
 #define PIN_LED3 12
 
+#define PIN_LED4 9
+
 #define MAX_SERVO_PULSEWIDTH 930
 #define MIN_SERVO_PULSEWIDTH 560
 #define CENTRAL_SERVO_PULSEWIDTH 745
@@ -79,7 +81,7 @@ void next_action_t1a(float ms){
 
 volatile byte pending_action_t1a = NONE;
 volatile bool flash_in_progress = false;
-volatile float on_time_ms = 500;
+volatile float on_time_ms = 20;
 ISR(TIMER1_COMPA_vect) {
     switch (pending_action_t1a){
 
@@ -96,7 +98,7 @@ ISR(TIMER1_COMPA_vect) {
             digitalWrite(PIN_LED2,HIGH);
             digitalWrite(PIN_LED3,HIGH);
             pending_action_t1a  = NONE;
-            disable_t1a();
+            //disable_t1a();
             flash_in_progress = false;
             break;
 
@@ -317,15 +319,20 @@ void setPulseWidth(float us){
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
+    pinMode(PIN_LED1,OUTPUT);
+    pinMode(PIN_LED2,OUTPUT);
+    pinMode(PIN_LED3,OUTPUT);
+    pinMode(PIN_LED4,OUTPUT);
+
     pinMode(13,OUTPUT);
     pinMode(8,OUTPUT);
     //rad
     state_buffer[0] = 0;
     // rad/s
     state_buffer[1] = 2*pi;
-    state_buffer_ts = micros();
+    state_buffer_ts = TCNT1;
     timer1_init();
-    //enable_t1a();
+    enable_t1a();
     enable_t1b();
     pending_action_t1b = RISING_NEUTRAL;
     next_action_t1b(1);
@@ -346,6 +353,28 @@ void loop() {
         Serial.println();
     }
     delay(100);
+    
+    pending_action_t1a = LED_ON;
+    // Setup LED to blink when azimuth = 0
+    if (!flash_in_progress){
+      // time needed to travel 10 degrees, so that light will be on for 10 deg
+      //on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
+      // XXX a bit hacky, but probably OK
+      on_time_ms = 30;
+      float t1a_delay = 50;
+      if (t1a_delay>0){
+        flash_in_progress = true;
+        next_action_t1a(t1a_delay);
+        pending_action_t1a = LED_ON;
+        Serial.println(F("LED on - "));
+        Serial.println(t1a_delay);
+      } else {
+        Serial.print("neg omega - ");
+        Serial.println(t1a_delay);
+      }
+    } else {
+      Serial.println("flash blk");
+    }
 
 
 }
