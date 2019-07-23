@@ -24,6 +24,14 @@
 #define MIN_SERVO_PULSEWIDTH 560
 #define CENTRAL_SERVO_PULSEWIDTH 745
 
+// roll-ch1->ch0, pitch ch2->ch1, rudder ch4->ch2
+#define PITCH_FULL_PULL 1930
+#define PITCH_FULL_PUSH 1108
+#define ROLL_FULL_LEFT 1108
+#define ROLL_FULL_RIGHT 1930
+#define RUDDER_FULL_LEFT 1110
+#define RUDDER_FULL_RIGHT 1930
+
 #define EI_ARDUINO_INTERRUPTED_PIN
 #include <EnableInterrupt.h>
 
@@ -124,7 +132,7 @@ void next_action_t1a(float ms){
 
 volatile byte pending_action_t1a = NONE;
 volatile bool flash_in_progress = false;
-volatile float on_time_ms = 10;
+volatile float on_time_ms = 20;
 ISR(TIMER1_COMPA_vect) {
     
     switch (pending_action_t1a){
@@ -133,7 +141,7 @@ ISR(TIMER1_COMPA_vect) {
             digitalWrite(PIN_LED1,LOW);
             digitalWrite(PIN_LED2,LOW);
             digitalWrite(PIN_LED3,LOW);
-            Serial.println("ISR led on");
+            //Serial.println("ISR led on");
             pending_action_t1a = LED_OFF;
             next_action_t1a(on_time_ms);
             break;
@@ -144,11 +152,11 @@ ISR(TIMER1_COMPA_vect) {
             digitalWrite(PIN_LED3,HIGH);
             pending_action_t1a  = NONE;
             flash_in_progress = false;
-            Serial.println("ISR led off");
+            //Serial.println("ISR led off");
             break;
 
         case NONE:
-            Serial.println("ISR NONE");
+            //Serial.println("ISR NONE");
             break;
     }
 } 
@@ -184,6 +192,7 @@ volatile uint16_t state_buffer_ts;
 volatile float quarter_period;
 volatile float current_phase;
 volatile int pending_action_t1b = RISING_NEUTRAL;
+volatile float ctrl_magnitude;
 ISR(TIMER1_COMPB_vect) {
   //Serial.print("COMPB = ");
   //Serial.print(pending_action_t1b);
@@ -207,7 +216,7 @@ ISR(TIMER1_COMPB_vect) {
           
       case SERVO_MAX:
           //Serial.println("SERVO_MAX");
-          setPulseWidth(MAX_SERVO_PULSEWIDTH);
+          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MAX_SERVO_PULSEWIDTH));
           // D9, blue LED, low enable
               asm (
                 "cbi %0, %1 \n"
@@ -231,7 +240,7 @@ ISR(TIMER1_COMPB_vect) {
 
       case SERVO_MIN:
           //Serial.println("SERVO_MIN");
-          setPulseWidth(MIN_SERVO_PULSEWIDTH);
+          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MIN_SERVO_PULSEWIDTH));
           pending_action_t1b  = RISING_NEUTRAL;
           next_action_t1b(quarter_period);
           break;
@@ -364,8 +373,12 @@ ISR(TIMER2_OVF_vect){
 
 
 
+float fmap_temp;
 float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  fmap_temp = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  fmap_temp = (fmap_temp>out_max)?out_max:fmap_temp;
+  fmap_temp = (fmap_temp<out_min)?out_min:fmap_temp;
+  return fmap_temp;
 }
 
 void setPulseWidth(float us){
@@ -1037,6 +1050,12 @@ bool flag_led_on = false;
 bool flag_calibrated = false;
 bool flag_running = false;
 bool flag_servo_protect = false;
+float pitch_normalized;
+float roll_normalized;
+float rudder_normalized;
+// where the monocopter is pointed, this is only a visual reference for pilot
+// roll/pitch will be based on this angle
+float ref_heading;
 unsigned long last_mag_update_ts;
 void loop() {
   sCmd.readSerial();
@@ -1168,6 +1187,8 @@ void loop() {
 
   // data processing and visualization
   kf_predict();
+
+  // acc update
   // WARNING FIXME two acc not aligned, implement same algo used in reader.py
   float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
   if (x[1][0]>2*pi){
@@ -1218,27 +1239,27 @@ void loop() {
         sei();
       }
 
-      //Serial.print("mag update--");
-              Serial.print("OCIE1A?");
-        Serial.println( TIMSK1 & (1<<OCIE1A));
-      // Setup LED to blink when azimuth = 0
+      Serial.println("mag update--");
+      // Setup LED to blink when azimuth = ref_heading
       if (!flash_in_progress){
-        // time needed to travel 10 degrees, so that light will be on for 10 deg
-        on_time_ms = 10.0/180.0*pi/x[1][0]*1000.0;
-        float t1a_delay = (2*pi-ffmod(x[0][0],2*pi))/x[1][0]*1000.0;
+        // time needed to travel 30 degrees, so that light will be on for 30 deg
+        on_time_ms = 30.0/180.0*pi/x[1][0]*1000.0;
+        // put a lower limit
+        on_time_ms = (on_time_ms<20)?20:on_time_ms;
+        float t1a_delay = (2*pi - ffmod(ref_heading-x[0][0],2*pi))/x[1][0]*1000.0;
         if (t1a_delay>0){
           flash_in_progress = true;
           pending_action_t1a = LED_ON;
           enable_t1a();
           next_action_t1a(t1a_delay);
-          Serial.println(F("LED on in- "));
-          Serial.println(t1a_delay);
+          //Serial.println(F("LED on in- "));
+          //Serial.println(t1a_delay);
         } else {
-          Serial.print("neg omega - ");
-          Serial.println(t1a_delay);
+          //Serial.print("neg omega - ");
+          //Serial.println(t1a_delay);
         }
       } else {
-        Serial.print("flash blk");
+        //Serial.print("flash blk");
 //        Serial.print(" OCR1A ");
 //        Serial.print(OCR1A);
 //        Serial.print(" TCNT1 ");
@@ -1256,10 +1277,34 @@ void loop() {
   }
   index%=4;
 
+  // set target phase to pilot input
+  // ctrl_phase: phase to START command to max deflection
+  //volatile float ctrl_phase;
+  // the control space is a 2 by 2 square (roll -1~1, pitch -1~1)
+  // the actual output is a circle, inner tangent to the control space, so control 
+  // will saturate at around 70% when going diagonally, this may result in undesirable handling characteristics
+  
+  // first find direction
+  roll_normalized = fmap(rc_in_val[0],ROLL_FULL_LEFT,ROLL_FULL_RIGHT,-1.0,1.0);
+  pitch_normalized = fmap(rc_in_val[1],PITCH_FULL_PULL,PITCH_FULL_PUSH,-1.0,1.0);
+  rudder_normalized = fmap(rc_in_val[2],RUDDER_FULL_LEFT,RUDDER_FULL_RIGHT,-1.0,1.0);
+  // target control : at max rudder, heading change 150deg/sec, loop runs 50Hz, so
+  // 1.5*pi/100 (unit: rad/loop)
+  // apply a 5% deadzone on rudder so it doesn't drift
+  if (abs(rudder_normalized)>0.1){
+    ref_heading += rudder_normalized * 1.5*pi/100.0;
+    ref_heading = ffmod(ref_heading,2*pi);
+  }
+  // positive direction is the monocopter's spin direction, here its clock-wise
+  ctrl_phase = ref_heading + atan2(roll_normalized,pitch_normalized);
+  ctrl_magnitude = sqrt(roll_normalized*roll_normalized+pitch_normalized*pitch_normalized)/1.41421;
+  ctrl_magnitude = ctrl_magnitude>1.0?1.0:ctrl_magnitude;
+
   // machine readable output
   if (!human_readable_output){
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
     // signify this is a line intended for machine parsing
+
 
     Serial.print('#');
 
@@ -1294,7 +1339,13 @@ void loop() {
     Serial.print(",");
     //unit: rev/s
     Serial.println(x[1][0]/2.0/pi);
+
     
+//    Serial.print(" ref: ");
+//    Serial.print(ref_heading/pi*180);
+//    Serial.print("  ctrl ");
+//    Serial.println((ctrl_phase-ref_heading)/pi*180);
+
     flag_reset_point = false;
     // limit transmission rate to 50Hz
     while (millis()-loop_ts < 20){
@@ -1321,6 +1372,7 @@ void loop() {
     //Serial.println(millis()-loop_ts);
     loop_ts = millis();
   }
+
   
 
 }

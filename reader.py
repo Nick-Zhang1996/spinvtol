@@ -267,8 +267,10 @@ def main(screen, testStand, avionics):
 
                 Zm[-1,0] = testStand_ts/1000.0 # in second
                 # mag angle dot product
-                #Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
-                Zm[-1,1] = kf_omega
+                Zm[-1,1] = np.dot(np.array([0,1,0]),mag/np.linalg.norm(mag))
+
+                # estimated omega from avionics
+                #Zm[-1,1] = kf_omega
 
                 Cm[-1,0] = testStand_ts/1000.0 # in second
                 # angle diff
@@ -304,7 +306,7 @@ if __name__ == '__main__':
         win = pg.GraphicsWindow(title="Avionics Feed") # create a window
         plot00 = win.addPlot(title="||acc1-acc2||",row=0,col=0,labels={'left':"modulus",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot01 = win.addPlot(title="Dacc/omega**2",row=0,col=1,labels={'left':"ratio",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot10 = win.addPlot(title="Estimated Omega",row=1,col=0,labels={'left':"omega(rev/s)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+        plot10 = win.addPlot(title="mag",row=1,col=0,labels={'left':"ref",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         plot11 = win.addPlot(title="omega difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
         curve = plot00.plot()                        # create an empty "plot" (a curve to plot)
         curve1 = plot01.plot()                        # create an empty "plot" (a curve to plot)

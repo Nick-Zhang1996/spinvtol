@@ -38,9 +38,10 @@ void loop() {
   while(lock);
   lock = true;
   if (val!=-1){
-    Serial.println(fmap(val,908.0,2140.0,260.0,1260.0));
+    Serial.println(val);
+    //Serial.println(fmap(val,908.0,2140.0,260.0,1260.0));
   }
-  myservo.writeMicroseconds(fmap(val,908.0,2140.0,260.0,1260.0));
+  //myservo.writeMicroseconds(fmap(val,908.0,2140.0,260.0,1260.0));
   lock = false;
   delay(10);
 }
