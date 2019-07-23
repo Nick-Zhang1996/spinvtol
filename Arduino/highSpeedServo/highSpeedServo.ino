@@ -213,13 +213,13 @@ void enable_t1b(){
 
 void disable_t1a(){
     cli();
-    TIMSK1 &= (0 << OCIE1A);
+    TIMSK1 &= ~(1 << OCIE1A);
     sei();
 }
 
 void disable_t1b(){
     cli();
-    TIMSK1 &= (0 << OCIE1B); 
+    TIMSK1 &= ~(1 << OCIE1B); 
     sei();
 }
 
@@ -366,14 +366,14 @@ void loop() {
         flash_in_progress = true;
         next_action_t1a(t1a_delay);
         pending_action_t1a = LED_ON;
-        Serial.println(F("LED on - "));
-        Serial.println(t1a_delay);
+        //Serial.println(F("LED on - "));
+        //Serial.println(t1a_delay);
       } else {
-        Serial.print("neg omega - ");
-        Serial.println(t1a_delay);
+        //Serial.print("neg omega - ");
+        //Serial.println(t1a_delay);
       }
     } else {
-      Serial.println("flash blk");
+      //Serial.println("flash blk");
     }
 
 
