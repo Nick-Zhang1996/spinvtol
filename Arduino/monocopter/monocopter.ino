@@ -25,12 +25,14 @@
 #define CENTRAL_SERVO_PULSEWIDTH 745
 
 // roll-ch1->ch0, pitch ch2->ch1, rudder ch4->ch2
-#define PITCH_FULL_PULL 1930
-#define PITCH_FULL_PUSH 1108
-#define ROLL_FULL_LEFT 1108
-#define ROLL_FULL_RIGHT 1930
-#define RUDDER_FULL_LEFT 1110
-#define RUDDER_FULL_RIGHT 1930
+#define PITCH_FULL_PULL 1930.0
+#define PITCH_FULL_PUSH 1108.0
+#define ROLL_FULL_LEFT 1108.0
+#define ROLL_FULL_RIGHT 1930.0
+#define RUDDER_FULL_LEFT 1110.0
+#define RUDDER_FULL_RIGHT 1930.0
+#define VR_MIN 932.0
+#define VR_MAX 2032.0
 
 #define EI_ARDUINO_INTERRUPTED_PIN
 #include <EnableInterrupt.h>
@@ -193,6 +195,19 @@ volatile float quarter_period;
 volatile float current_phase;
 volatile int pending_action_t1b = RISING_NEUTRAL;
 volatile float ctrl_magnitude;
+// Functionalities and pin layout
+// RC in : 3 channels, on pin 4,5,6 (port D 0-7)
+// RC out: 2 channels, flap on pin 8, ESC on pin 9 (port B 8-13)
+
+// Timer usage:
+// Timer 0 : delay, millis
+// Timer 1 : Servo
+
+uint8_t rc_in_pinno[] = {4, 5, 6, 7, 3}; // CH0,1,2,3,4
+volatile int rc_in_val[5] = {0};
+volatile unsigned long rc_rising_ts[5] = {0};
+bool flag_signal_loss = false;
+
 ISR(TIMER1_COMPB_vect) {
   //Serial.print("COMPB = ");
   //Serial.print(pending_action_t1b);
@@ -201,7 +216,9 @@ ISR(TIMER1_COMPB_vect) {
 
       case RISING_NEUTRAL:
           //Serial.println("RISING_NEUTRAL");
-          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          // allow an adjustable offset, this is mapped to VR in T8j transmitter
+          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
           pending_action_t1b = SERVO_MAX;
           // adjust control phase to sync with estimated state
           // 500 = 2(for 2pi) * 1000 (sec -> ms) / 4 (quarter period)
@@ -228,7 +245,9 @@ ISR(TIMER1_COMPB_vect) {
 
       case FALLING_NEUTRAL:
           //Serial.println("FALLING_NEUTRAL");
-          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+
           // D9, blue LED
               asm (
                 "sbi %0, %1 \n"
@@ -376,16 +395,22 @@ ISR(TIMER2_OVF_vect){
 float fmap_temp;
 float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
   fmap_temp = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-  fmap_temp = (fmap_temp>out_max)?out_max:fmap_temp;
-  fmap_temp = (fmap_temp<out_min)?out_min:fmap_temp;
+  if (out_max>out_min){
+    fmap_temp = (fmap_temp>out_max)?out_max:fmap_temp;
+    fmap_temp = (fmap_temp<out_min)?out_min:fmap_temp;
+  } else{
+    fmap_temp = (fmap_temp<out_max)?out_max:fmap_temp;
+    fmap_temp = (fmap_temp>out_min)?out_min:fmap_temp;
+
+  }
   return fmap_temp;
 }
 
 void setPulseWidth(float us){
     us = (us>MAX_SERVO_PULSEWIDTH)?MAX_SERVO_PULSEWIDTH:us;
     us = (us<MIN_SERVO_PULSEWIDTH)?MIN_SERVO_PULSEWIDTH:us;
-    //Serial.print("pulsewidth set=");
-    //Serial.println((uint8_t) (us/16));
+    //Serial.print(F("pulsewidth set="));
+    //Serial.println(us);
     cli(); //TODO would this cause irratical behavior?
     OCR2A = (uint8_t) (us/16); // 16us per tick of clock
     sei();
@@ -495,21 +520,7 @@ void displayRange(Adafruit_ADXL345_Unified &accel)
 
 
 
-// Functionalities and pin layout
-// RC in : 3 channels, on pin 4,5,6 (port D 0-7)
-// RC out: 2 channels, flap on pin 8, ESC on pin 9 (port B 8-13)
 
-// Timer usage:
-// Timer 0 : delay, millis
-// Timer 1 : Servo
-
-uint8_t rc_in_pinno[] = {4, 5, 6}; // CH0,1,2
-volatile int rc_in_val[3] = {0};
-volatile unsigned long rc_rising_ts[3] = {0};
-bool flag_signal_loss = false;
-
-//Servo flap;
-//Servo esc;
 
 //note: measured dutycycle for futaba FHSS 13564us, 73Hz
 void rc_in_callback() {
@@ -519,6 +530,8 @@ void rc_in_callback() {
     case 4 : channel = 0; break;
     case 5 : channel = 1; break;
     case 6 : channel = 2; break;
+    case 7 : channel = 3; break;
+    case 3 : channel = 4; break;
     default : break;
   }
   if (channel == -1) {
@@ -528,8 +541,8 @@ void rc_in_callback() {
     rc_rising_ts[channel] = timestamp;
   } else {
     rc_in_val[channel] = timestamp - rc_rising_ts[channel];
-
   }
+  
 }
 
 
@@ -787,11 +800,11 @@ void setup() {
   // accel_in.setRange(ADXL345_RANGE_2_G);
 
   /* Display some basic information on this sensor */
-  displaySensorDetails(accel_in);
+  //displaySensorDetails(accel_in);
 
   /* Display additional settings (outside the scope of sensor_t) */
-  displayDataRate(accel_in);
-  displayRange(accel_in);
+  //displayDataRate(accel_in);
+  //displayRange(accel_in);
   Serial.println("");
   // ------ outer ADXL345
   Serial.println(F("Accelerometer Init -- outer (0x1D)")); Serial.println("");
@@ -810,11 +823,11 @@ void setup() {
   // accel_out.setRange(ADXL345_RANGE_2_G);
 
   /* Display some basic information on this sensor */
-  displaySensorDetails(accel_out);
+  //displaySensorDetails(accel_out);
 
   /* Display additional settings (outside the scope of sensor_t) */
-  displayDataRate(accel_out);
-  displayRange(accel_out);
+  //displayDataRate(accel_out);
+  //displayRange(accel_out);
   Serial.println("");
   // ----------- end ADXL345 init -----------
 
@@ -1070,7 +1083,11 @@ void loop() {
       Serial.print(F(" | ch1 : "));
       Serial.print(rc_in_val[1]);
       Serial.print(F(" | ch2 : "));
-      Serial.println(rc_in_val[2]);
+      Serial.print(rc_in_val[2]);
+      Serial.print(F(" | ch3 : "));
+      Serial.print(rc_in_val[3]);
+      Serial.print(F(" -> "));
+      Serial.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
     }
   }
   // block ----
@@ -1214,13 +1231,13 @@ void loop() {
         Serial.println(F("Warning: omega too high"));
         flag_servo_protect = true;
         disable_t1b();
-        setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+        setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
         digitalWrite(PIN_LED4,HIGH);
       } else if (x[1][0]<2*pi) {
         Serial.println(F("Omega too low, servo disabled"));
         flag_servo_protect = true;
         disable_t1b();
-        setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
+        setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
         digitalWrite(PIN_LED4,HIGH);
       } else {
         // suitable omega for control
@@ -1285,9 +1302,9 @@ void loop() {
   // will saturate at around 70% when going diagonally, this may result in undesirable handling characteristics
   
   // first find direction
-  roll_normalized = fmap(rc_in_val[0],ROLL_FULL_LEFT,ROLL_FULL_RIGHT,-1.0,1.0);
-  pitch_normalized = fmap(rc_in_val[1],PITCH_FULL_PULL,PITCH_FULL_PUSH,-1.0,1.0);
-  rudder_normalized = fmap(rc_in_val[2],RUDDER_FULL_LEFT,RUDDER_FULL_RIGHT,-1.0,1.0);
+  roll_normalized = fmap(float(rc_in_val[0]),ROLL_FULL_LEFT,ROLL_FULL_RIGHT,-1.0,1.0);
+  pitch_normalized = fmap(float(rc_in_val[1]),PITCH_FULL_PULL,PITCH_FULL_PUSH,-1.0,1.0);
+  rudder_normalized = fmap(float(rc_in_val[2]),RUDDER_FULL_LEFT,RUDDER_FULL_RIGHT,-1.0,1.0);
   // target control : at max rudder, heading change 150deg/sec, loop runs 50Hz, so
   // 1.5*pi/100 (unit: rad/loop)
   // apply a 5% deadzone on rudder so it doesn't drift
@@ -1346,11 +1363,16 @@ void loop() {
 //    Serial.print("  ctrl ");
 //    Serial.println((ctrl_phase-ref_heading)/pi*180);
 
+    //Serial.println(millis()-loop_ts);
+    loop_ts = millis();
+  }
+
+  
     flag_reset_point = false;
     // limit transmission rate to 50Hz
     while (millis()-loop_ts < 20){
       delayMicroseconds(100);
-
+    }
       if (millis()-last_mag_update_ts>2000){
         x[1][0] = 0;
         x[0][0] = 0;
@@ -1364,15 +1386,12 @@ void loop() {
           Serial.println(F("servo disabled"));
           flag_servo_protect = true;
           disable_t1b();
-          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           digitalWrite(PIN_LED4,HIGH);
         }
       }
+    
+    if (!flag_running){
+       //Serial.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+       setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
     }
-    //Serial.println(millis()-loop_ts);
-    loop_ts = millis();
-  }
-
-  
-
 }
