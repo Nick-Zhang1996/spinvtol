@@ -4,39 +4,40 @@
 #define LED_OFF 1
 #define LED_ON 2
 
-volatile byte pending_action_t1a = NONE;
-volatile bool flash_in_progress = false;
-volatile float on_time_ms = 20;
+IntervalTimer myTimer;
+
+volatile byte pending_action_blinker = NONE;
 void blinker() {
     
-    switch (pending_action_t1a){
+  switch (pending_action_blinker){
 
-        case LED_ON:
-            digitalWrite(PIN_LED,HIGH);
-            //Serial.println("ISR led on");
-            pending_action_t1a = LED_OFF;
-            next_action_t1a(on_time_ms);
-            break;
+    case LED_ON:
+      digitalWrite(LED_PIN,HIGH);
+      //Serial.println("ISR led on");
+      pending_action_blinker = LED_OFF;
+      myTimer.begin(blinker,1e6);
+      break;
 
-        case LED_OFF:
-            digitalWrite(PIN_LED,LOW);
-            pending_action_t1a  = NONE;
-            flash_in_progress = false;
-            //Serial.println("ISR led off");
-            break;
+    case LED_OFF:
+      digitalWrite(LED_PIN,LOW);
+      pending_action_blinker  = LED_ON;
+      myTimer.begin(blinker,3e6);
+      //Serial.println("ISR led off");
+      break;
 
-        case NONE:
-            //Serial.println("ISR NONE");
-            break;
-    }
+    case NONE:
+      //Serial.println("ISR NONE");
+      break;
+  }
 } 
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(LED_PIN,OUTPUT);
+  pending_action_blinker = LED_ON;
+  myTimer.begin(blinker,1e6);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
 }
