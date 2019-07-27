@@ -1,0 +1,4 @@
+[submodule "Arduino/libraries/PWMServo"]
+	path = Arduino/libraries/PWMServo
+	url = https://github.com/PaulStoffregen/PWMServo
+	branch = master
