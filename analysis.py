@@ -9,6 +9,7 @@ rho = 1.2
 # kinematic viscosity
 nu = 1.48E-5
 
+
 def fun_cord(r):
 # design function, give cord length as a function of r
     if r < 0.4:
@@ -53,7 +54,10 @@ def analyze(omega,m,cord, R):
     acc = omega**2*R/g
 # Rotor solidity
     rs = integrate.quad(cord, 0, R)[0]/pi/R**2
-    print("---- Analyze case ----")
+    print("---- Analysis case ----")
+    print("-- input --")
+    print("rev/s =" + "%.2f"%(omega/2/pi) + " m= " + "%.2f"%(m) + " R=" + "%.2f"%(R))
+    print("-- result --")
     print("C_l = " + "%.2f"%(C_l))
     print("Mid span Re = %.0f"%Re)
     print("Disk Loading = " + "%.2f"%(DL))
@@ -66,10 +70,10 @@ def analyze(omega,m,cord, R):
     return 
 
 # from paper Pitch and Heave ..... Evan, Journal of Aircraft
-analyze(80.5,0.075,samara_cord,0.27)
+#analyze(80.5,0.075,samara_cord,0.27)
 
 # from photo sensor paper
-analyze(16.6,1.2,optical_cord,1.0)
+#analyze(16.6,1.2,optical_cord,1.0)
 #
 # THOR
 #analyze(38,0.532,thor_cord,0.5)
@@ -77,11 +81,20 @@ analyze(16.6,1.2,optical_cord,1.0)
 ## analyze(omega,m,cord, R):
 
 # fly-by-wire control project
-analyze(40,0.175,wire_cord,0.4)
+#analyze(40,0.175,wire_cord,0.4)
 
 def my_cord(r):
-    return 0.2
-analyze(2*pi*6,0.4,my_cord, 0.45) 
+    return 0.19
 
+# original, uncontroller
+analyze(2*pi*5,0.33,my_cord, 0.45) 
 
+# add ctrl sys, no wing ext,  barely take off
+analyze(2*pi*5,0.43,my_cord, 0.45) 
+
+# add ext, tips over
+analyze(2*pi*2.5,0.468,my_cord, 0.8) 
+
+# experimental
+analyze(2*pi*5,0.468,my_cord, 0.8) 
 
