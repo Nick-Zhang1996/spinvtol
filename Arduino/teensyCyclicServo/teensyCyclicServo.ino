@@ -114,7 +114,7 @@ void cyclic(){
       case RISING_NEUTRAL:
           Serial.println("RISING_NEUTRAL");
           setPulsewidth(CENTRAL_SERVO_PULSEWIDTH);
-          digitalWrite(PIN_TEST,LOW);
+          analogWrite(PIN_TEST,10);
           pending_action_cyclic = SERVO_MAX;
           // adjust control phase to sync with estimated state
           // 5e5 = 2(for 2pi) * 1e6 (sec -> us) / 4 (quarter period)
@@ -134,43 +134,25 @@ void cyclic(){
       case SERVO_MAX:
           Serial.println("SERVO_MAX");
           setPulsewidth(MAX_SERVO_PULSEWIDTH);
-          digitalWrite(PIN_TEST,HIGH);
+          analogWrite(PIN_TEST,50);
           pending_action_cyclic = FALLING_NEUTRAL;
           remaining_delay_us = quarter_period;
-
-          current_phase = state_buffer[0] + float(micros()-state_buffer_ts)*1e-6*state_buffer[1];
-          //Serial.print("current phase= ");
-          //Serial.println(ffmod(current_phase,2*pi)/pi*180);
-          //Serial.print("dist 2 ctrl phase= ");
-          //Serial.println((ffmod(ctrl_phase-current_phase,2*pi))/pi*180);
           break;
 
       case FALLING_NEUTRAL:
           Serial.println("FALLING_NEUTRAL");
           setPulsewidth(CENTRAL_SERVO_PULSEWIDTH);
-          digitalWrite(PIN_TEST,LOW);
+          analogWrite(PIN_TEST,150);
           pending_action_cyclic = SERVO_MIN;
           remaining_delay_us = quarter_period;
-
-          current_phase = state_buffer[0] + float(micros()-state_buffer_ts)*1e-6*state_buffer[1];
-          //Serial.print("current phase= ");
-          //Serial.println(ffmod(current_phase,2*pi)/pi*180);
-          //Serial.print("dist 2 ctrl phase= ");
-          //Serial.println((ffmod(ctrl_phase-current_phase,2*pi))/pi*180);
           break;
 
       case SERVO_MIN:
           Serial.println("SERVO_MIN");
           setPulsewidth(MIN_SERVO_PULSEWIDTH);
-          digitalWrite(PIN_TEST,HIGH);
+          analogWrite(PIN_TEST,200);
           pending_action_cyclic  = RISING_NEUTRAL;
           remaining_delay_us = quarter_period;
-
-          current_phase = state_buffer[0] + float(micros()-state_buffer_ts)*1e-6*state_buffer[1];
-          //Serial.print("current phase= ");
-          //Serial.println(ffmod(current_phase,2*pi)/pi*180);
-          //Serial.print("dist 2 ctrl phase= ");
-          //Serial.println((ffmod(ctrl_phase-current_phase,2*pi))/pi*180);
           break;
 
       case NONE:
