@@ -2,3 +2,6 @@
 	path = Arduino/libraries/PWMServo
 	url = https://github.com/PaulStoffregen/PWMServo
 	branch = master
+[submodule "Arduino/libraries/TeensyDelay"]
+	path = Arduino/libraries/TeensyDelay
+	url = https://github.com/Nick-Zhang1996/TeensyDelay
