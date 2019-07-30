@@ -1,5 +1,4 @@
 #include <Servo.h>
-//#include <util/atomic.h>
 
 Servo myservo;
 int interruptPin = 2;

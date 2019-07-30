@@ -1,5 +1,6 @@
 // test routine for PPM input and servo control (high freq tail servo)
 // Nick Zhang Summer 2019
+// for Teensy 3.5
 
 // Uses PDB timer
 #include <PWMServo.h>
@@ -48,8 +49,7 @@ void loop() {
     Serial.println(val);
     //Serial.println(fmap(val,908.0,2140.0,560.0,930.0);
   }
-  //myservo.writeMicroseconds(fmap(val,908.0,2140.0,560.0,930.0));
-  myservo.writeMicroseconds(745);
+  myservo.writeMicroseconds(fmap(val,908.0,2140.0,560.0,930.0));
   lock = false;
   delay(10);
 }

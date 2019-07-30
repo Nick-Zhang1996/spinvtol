@@ -1,3 +1,4 @@
+// test timer based interrupt on Teensy 3.5
 #define LED_PIN 13
 // action sequence for blinker
 #define NONE 0
