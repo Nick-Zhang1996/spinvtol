@@ -24,7 +24,7 @@
 #define PIN_LED3 12
 #define PIN_LED4 9
 
-#define PIN_SERVO 4
+#define PIN_SERVO 14
 #define PIN_TEST 3
 
 
@@ -113,7 +113,7 @@ void cyclic(){
 
       case RISING_NEUTRAL:
           Serial.println("RISING_NEUTRAL");
-          setPulsewidth(CENTRAL_SERVO_PULSEWIDTH);
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           analogWrite(PIN_TEST,10);
           pending_action_cyclic = SERVO_MAX;
           // adjust control phase to sync with estimated state
@@ -133,7 +133,7 @@ void cyclic(){
           
       case SERVO_MAX:
           Serial.println("SERVO_MAX");
-          setPulsewidth(MAX_SERVO_PULSEWIDTH);
+          setPulseWidth(MAX_SERVO_PULSEWIDTH);
           analogWrite(PIN_TEST,50);
           pending_action_cyclic = FALLING_NEUTRAL;
           remaining_delay_us = quarter_period;
@@ -141,7 +141,7 @@ void cyclic(){
 
       case FALLING_NEUTRAL:
           Serial.println("FALLING_NEUTRAL");
-          setPulsewidth(CENTRAL_SERVO_PULSEWIDTH);
+          setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           analogWrite(PIN_TEST,150);
           pending_action_cyclic = SERVO_MIN;
           remaining_delay_us = quarter_period;
@@ -149,7 +149,7 @@ void cyclic(){
 
       case SERVO_MIN:
           Serial.println("SERVO_MIN");
-          setPulsewidth(MIN_SERVO_PULSEWIDTH);
+          setPulseWidth(MIN_SERVO_PULSEWIDTH);
           analogWrite(PIN_TEST,200);
           pending_action_cyclic  = RISING_NEUTRAL;
           remaining_delay_us = quarter_period;
@@ -177,7 +177,7 @@ int max_us = MAX_SERVO_PULSEWIDTH;
 
 volatile uint32_t oldres;
 volatile int duty;
-void setPulsewidth(float us)
+void setPulseWidth(float us)
 {
   if (us<min_us) { us = min_us; }
   if (us>max_us) { us = max_us; }
@@ -205,6 +205,53 @@ void test(){
     }
 }
       
+uint8_t rc_in_pinno[] = {4, 5, 6, 7, 8}; // CH0,1,2,3,4
+volatile int rc_in_val[5] = {0};
+volatile unsigned long rc_rising_ts[5] = {0};
+bool flag_signal_loss = false;
+
+//note: measured dutycycle for futaba FHSS 13564us, 73Hz
+void rc0_in_callback() {
+  unsigned long timestamp = micros();
+  if (digitalRead(rc_in_pinno[0]) == HIGH) {
+    rc_rising_ts[0] = timestamp;
+  } else {
+    rc_in_val[0] = timestamp - rc_rising_ts[0];
+  }
+}
+void rc1_in_callback() {
+  unsigned long timestamp = micros();
+  if (digitalRead(rc_in_pinno[1]) == HIGH) {
+    rc_rising_ts[1] = timestamp;
+  } else {
+    rc_in_val[1] = timestamp - rc_rising_ts[1];
+  }
+}
+void rc2_in_callback() {
+  unsigned long timestamp = micros();
+  if (digitalRead(rc_in_pinno[2]) == HIGH) {
+    rc_rising_ts[2] = timestamp;
+  } else {
+    rc_in_val[2] = timestamp - rc_rising_ts[2];
+  }
+}
+void rc3_in_callback() {
+  unsigned long timestamp = micros();
+  if (digitalRead(rc_in_pinno[3]) == HIGH) {
+    rc_rising_ts[3] = timestamp;
+  } else {
+    rc_in_val[3] = timestamp - rc_rising_ts[3];
+  }
+}
+void rc4_in_callback() {
+  unsigned long timestamp = micros();
+  if (digitalRead(rc_in_pinno[4]) == HIGH) {
+    rc_rising_ts[4] = timestamp;
+  } else {
+    rc_in_val[4] = timestamp - rc_rising_ts[4];
+  }
+}
+
 
 void setup() {
     // put your setup code here, to run once:
@@ -215,15 +262,12 @@ void setup() {
     pinMode(PIN_LED3,OUTPUT);
     pinMode(PIN_LED4,OUTPUT);
     pinMode(PIN_TEST,OUTPUT);
-    pinMode(6,OUTPUT);
-    digitalWrite(6,HIGH);
     digitalWrite(PIN_LED, LOW);
 
     pinMode(PIN_SERVO,OUTPUT);
     analogWriteFrequency(PIN_SERVO, 300);
 
     pinMode(13,OUTPUT);
-    pinMode(8,OUTPUT);
     //rad
     state_buffer[0] = 0;
     // rad/s
@@ -239,9 +283,16 @@ void setup() {
     TeensyDelay::trigger(10,0);
     //TeensyDelay::trigger(10,1);
 
+    for (int i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
+      pinMode(rc_in_pinno[i], INPUT);
+    }
+    attachInterrupt( digitalPinToInterrupt(rc_in_pinno[0]), rc0_in_callback, CHANGE);
+    attachInterrupt( digitalPinToInterrupt(rc_in_pinno[1]), rc1_in_callback, CHANGE);
+    attachInterrupt( digitalPinToInterrupt(rc_in_pinno[2]), rc2_in_callback, CHANGE);
+    attachInterrupt( digitalPinToInterrupt(rc_in_pinno[3]), rc3_in_callback, CHANGE);
+    attachInterrupt( digitalPinToInterrupt(rc_in_pinno[4]), rc4_in_callback, CHANGE);
     
 }
-
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -270,6 +321,21 @@ void loop() {
           }
         }
     }
-    delay(100);
+    //block -- serial update
+    static int serial_update_freq = 10;
+    static unsigned long serial_update_ts = millis();
+    if ( (millis() - serial_update_ts) > (unsigned long) (1000 / float(serial_update_freq)) ) {
+      serial_update_ts = millis();
+        Serial.print(F("RC in : ch0 : "));
+        Serial.print(rc_in_val[0]);
+        Serial.print(F(" | ch1 : "));
+        Serial.print(rc_in_val[1]);
+        Serial.print(F(" | ch2 : "));
+        Serial.print(rc_in_val[2]);
+        Serial.print(F(" | ch3 : "));
+        Serial.println(rc_in_val[3]);
+    }
+    // block ----
+    delay(10);
 
 }
