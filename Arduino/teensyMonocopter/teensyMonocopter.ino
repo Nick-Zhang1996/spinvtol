@@ -1,6 +1,7 @@
 // monocopter controller, for teensy 3.5
 // Nick Zhang 2019
 
+
 // Pin connection table:
 // most of these can be changed, though there are some restrictions
 // LED1,LED2,LED3, LED4(blue): 9,10,11,12
@@ -716,7 +717,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  for (int i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
+  for (uint8_t i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
     pinMode(rc_in_pinno[i], INPUT);
   }
 
@@ -1068,10 +1069,10 @@ void loop() {
 
   // acc update
   // WARNING FIXME two acc not aligned, implement same algo used in reader.py
-  float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
-  if (x[1][0]>2*pi){
+  //float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
+  //if (x[1][0]>2*pi){
     //kf_update_acc(delta_acc);
-  }
+  //}
 
   float m_norm = sqrt(myIMU.mx*myIMU.mx + myIMU.my*myIMU.my + myIMU.mz*myIMU.mz);
   // vec_mag dot (0,1,0) / mag_norm
