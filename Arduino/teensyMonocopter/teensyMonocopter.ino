@@ -7,7 +7,8 @@
 // LED1,LED2,LED3, LED4(blue): 9,10,11,12
 // RSSI level from xbee: 3
 // RC channel PWM input: 4,5,6,7,8
-// flap servo output: 14
+// flap servo output: 29
+// throttle  output(reserved, not used): 30
 
 // 3 red led array
 #define PIN_LED 13
@@ -17,7 +18,7 @@
 // blue
 #define PIN_LED4 12
 
-#define PIN_SERVO 14
+#define PIN_SERVO 29
 
 
 // action sequence for T1_COMPA
