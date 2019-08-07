@@ -140,18 +140,21 @@ ISR(TIMER1_COMPA_vect) {
     switch (pending_action_t1a){
 
         case LED_ON:
-            digitalWrite(PIN_LED1,LOW);
-            digitalWrite(PIN_LED2,LOW);
-            digitalWrite(PIN_LED3,LOW);
+            // 10,11,12
+            //digitalWrite(PIN_LED1,LOW);
+            //digitalWrite(PIN_LED2,LOW);
+            //digitalWrite(PIN_LED3,LOW);
+            PORTB &= B100011;
             //Serial.println("ISR led on");
             pending_action_t1a = LED_OFF;
             next_action_t1a(on_time_ms);
             break;
 
         case LED_OFF:
-            digitalWrite(PIN_LED1,HIGH);
-            digitalWrite(PIN_LED2,HIGH);
-            digitalWrite(PIN_LED3,HIGH);
+            //digitalWrite(PIN_LED1,HIGH);
+            //digitalWrite(PIN_LED2,HIGH);
+            //digitalWrite(PIN_LED3,HIGH);
+            PORTB |= B011100;
             pending_action_t1a  = NONE;
             flash_in_progress = false;
             //Serial.println("ISR led off");
@@ -234,13 +237,13 @@ ISR(TIMER1_COMPB_vect) {
       case SERVO_MAX:
           //Serial.println("SERVO_MAX");
           setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MAX_SERVO_PULSEWIDTH));
-          // D9, blue LED, low enable
-              asm (
-                "cbi %0, %1 \n"
-                : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB1)
-              );
           pending_action_t1b = FALLING_NEUTRAL;
           next_action_t1b(quarter_period);
+          // D9, blue LED
+              asm (
+                "sbi %0, %1 \n"
+                : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB1)
+              );
           break;
 
       case FALLING_NEUTRAL:
@@ -248,11 +251,6 @@ ISR(TIMER1_COMPB_vect) {
           //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
 
-          // D9, blue LED
-              asm (
-                "sbi %0, %1 \n"
-                : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB1)
-              );
           pending_action_t1b = SERVO_MIN;
           next_action_t1b(quarter_period);
           break;
@@ -262,6 +260,11 @@ ISR(TIMER1_COMPB_vect) {
           setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MIN_SERVO_PULSEWIDTH));
           pending_action_t1b  = RISING_NEUTRAL;
           next_action_t1b(quarter_period);
+          // D9, blue LED, low enable
+              asm (
+                "cbi %0, %1 \n"
+                : : "I" (_SFR_IO_ADDR(PORTB)), "I" (PORTB1)
+              );
           break;
 
       case NONE:
@@ -1070,6 +1073,7 @@ float rudder_normalized;
 // roll/pitch will be based on this angle
 float ref_heading;
 unsigned long last_mag_update_ts;
+int flap_val;
 void loop() {
   sCmd.readSerial();
   //block -- serial update
@@ -1309,7 +1313,7 @@ void loop() {
   // 1.5*pi/100 (unit: rad/loop)
   // apply a 5% deadzone on rudder so it doesn't drift
   if (abs(rudder_normalized)>0.1){
-    ref_heading += rudder_normalized * 1.5*pi/100.0;
+    ref_heading -= rudder_normalized * 1.5*pi/100.0;
     ref_heading = ffmod(ref_heading,2*pi);
   }
   // positive direction is the monocopter's spin direction, here its clock-wise
@@ -1392,6 +1396,9 @@ void loop() {
     
     if (!flag_running){
        //Serial.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
-       setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+       int newval = fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH);
+       if (abs(newval-flap_val)>5){
+         setPulseWidth(newval);
+       }
     }
 }

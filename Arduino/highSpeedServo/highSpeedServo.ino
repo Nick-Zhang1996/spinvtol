@@ -2,6 +2,7 @@
 // 1. high speed servo controller with timer2. This sketch is able to control ppm on a per duty cycle basis
 // 2. dual independent action sequence manager through timer 1
 // the purpose of this skwtch is to test fast, frequent manipulation of timer settings and observe results
+// End result: rapidly cycling the servo connected on pin D8, between MAX_SERVO_PULSEWIDTH and MIN_SERVO_PULSEWIDTH, the period can be changed through serial
 
 // actions
 #define NONE 0
@@ -344,7 +345,10 @@ void loop() {
     if (Serial.available()>0) {
         float val = Serial.parseFloat();
         cli();
-        ctrl_phase = fmap(val,0,360,0,2*pi);
+        //ctrl_phase = fmap(val,0,360,0,2*pi);
+        if (val<10 and val >0.01){
+          state_buffer[1] = 2*pi*val;
+        }
         sei();
         
         Serial.print(val);
