@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # provides some sanity check routine for monocopter design
 import numpy as np
 import scipy.integrate as integrate
@@ -70,10 +71,10 @@ def analyze(omega,m,cord, R):
     return 
 
 # from paper Pitch and Heave ..... Evan, Journal of Aircraft
-#analyze(80.5,0.075,samara_cord,0.27)
+analyze(80.5,0.075,samara_cord,0.27)
 
 # from photo sensor paper
-#analyze(16.6,1.2,optical_cord,1.0)
+analyze(16.6,1.2,optical_cord,1.0)
 #
 # THOR
 #analyze(38,0.532,thor_cord,0.5)
@@ -81,20 +82,26 @@ def analyze(omega,m,cord, R):
 ## analyze(omega,m,cord, R):
 
 # fly-by-wire control project
-#analyze(40,0.175,wire_cord,0.4)
+analyze(40,0.175,wire_cord,0.4)
 
 def my_cord(r):
     return 0.19
 
-# original, uncontroller
+# original, no controller
 analyze(2*pi*5,0.33,my_cord, 0.45) 
 
 # add ctrl sys, no wing ext,  barely take off
-analyze(2*pi*5,0.43,my_cord, 0.45) 
+#analyze(2*pi*5,0.43,my_cord, 0.45) 
 
 # add ext, tips over
-analyze(2*pi*2.5,0.468,my_cord, 0.8) 
+#analyze(2*pi*2.5,0.468,my_cord, 0.8) 
 
-# experimental
-analyze(2*pi*5,0.468,my_cord, 0.8) 
+# 55cm wing, barely takes off with full throttle and 7 deg installation angle
+#analyze(3.3*pi*2,0.468,my_cord, 0.5) 
+
+# 55cm wing, good power, 3s lipo, and 7 deg installation angle
+analyze(5.5*pi*2,0.468+0.052,my_cord, 0.5) 
+
+# 60cm wing, experiment
+analyze(5.5*pi*2,0.468+0.052,my_cord, 0.6) 
 
