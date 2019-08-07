@@ -26,3 +26,10 @@ Test result:
   It seems the motor's installation angle also plays a vital role here. If excessive noise is heard on the motor's landing gear, then it is likely that the aerodynamic moment is increasing, and countered by the landing gear's contact normal force with ground. If such restriction is removed by placing the monocopter on a stand, then the AOA of the wing is free to increase, and this will be an aggrevating, unstable increase that prevent steady hovering. Or, if the throttle input is chosen carefully, the increase in AOA will induce drag, therefore slowing the monocopter down, and the whole system enters a limit cycle of increase omega, increase AOA, increase drag, decrease omega, decrease moment, ...
 
   In previous successful flight with a light, no ctrl electronics and no ext wing monocopter, video examination shows an obvious downward pitching moment provided by the motor. However, the wing still assumes an AOA that allows positive lift. This seems to be absent in some of the test flights today. The aircraft either happily takes off then rapidly increase AOA till everything goes wrong, or bites and grinds the ground, never getting enough (or any) lift to get off ground. Maybe a sensible action is to increase installation angle of the wing, or attach some device that mechanically constrains the wing's initial pitch angle to ensure positive lift is generated. 
+
+  Aug 2, Fri
+  After shortening the wing to 55cm, stable flight was achieved, the aircraft seems slightly underpowered even with installation angle adjusted to the maximum and full throttle. 
+  
+  Aug 5, Mon
+  A 4s Lipo system is installed, monocopter easily flies out of ground effect. Servo is now powered through BEC, and may not have sufficient voltage supply to operate at high speed. Should I add a separate battery pack for servo? It seems the servo can do it but this process puts much stress on the BEC and it gets very hot. Will employ a 52g separte battery pack. This would require an additional 0.35rev/s
+  install angle : 7deg, omega : 5rev/s , disk angle : around 15deg, calculated C_l: 0.98
