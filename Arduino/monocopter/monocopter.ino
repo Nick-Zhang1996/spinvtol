@@ -1318,7 +1318,7 @@ void loop() {
   }
   // positive direction is the monocopter's spin direction, here its clock-wise
   ctrl_phase = ref_heading + atan2(roll_normalized,pitch_normalized);
-  ctrl_magnitude = sqrt(roll_normalized*roll_normalized+pitch_normalized*pitch_normalized)/1.41421;
+  ctrl_magnitude = sqrt(roll_normalized*roll_normalized+pitch_normalized*pitch_normalized);
   ctrl_magnitude = ctrl_magnitude>1.0?1.0:ctrl_magnitude;
 
   // machine readable output
