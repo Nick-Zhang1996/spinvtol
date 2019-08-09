@@ -209,11 +209,13 @@ volatile float ctrl_magnitude;
 uint8_t rc_in_pinno[] = {4, 5, 6, 7, 3}; // CH0,1,2,3,4
 volatile int rc_in_val[5] = {0};
 volatile unsigned long rc_rising_ts[5] = {0};
+volatile float dynamic_servo_central = CENTRAL_SERVO_PULSEWIDTH;
 bool flag_signal_loss = false;
 
 ISR(TIMER1_COMPB_vect) {
   //Serial.print("COMPB = ");
   //Serial.print(pending_action_t1b);
+  dynamic_servo_central = fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH); 
 
   switch(pending_action_t1b){
 
@@ -221,7 +223,7 @@ ISR(TIMER1_COMPB_vect) {
           //Serial.println("RISING_NEUTRAL");
           //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           // allow an adjustable offset, this is mapped to VR in T8j transmitter
-          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+          setPulseWidth(dynamic_servo_central);
           pending_action_t1b = SERVO_MAX;
           // adjust control phase to sync with estimated state
           // 500 = 2(for 2pi) * 1000 (sec -> ms) / 4 (quarter period)
@@ -236,7 +238,7 @@ ISR(TIMER1_COMPB_vect) {
           
       case SERVO_MAX:
           //Serial.println("SERVO_MAX");
-          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MAX_SERVO_PULSEWIDTH));
+          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,dynamic_servo_central, MAX_SERVO_PULSEWIDTH));
           pending_action_t1b = FALLING_NEUTRAL;
           next_action_t1b(quarter_period);
           // D9, blue LED
@@ -249,7 +251,7 @@ ISR(TIMER1_COMPB_vect) {
       case FALLING_NEUTRAL:
           //Serial.println("FALLING_NEUTRAL");
           //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
-          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+          setPulseWidth(dynamic_servo_central);
 
           pending_action_t1b = SERVO_MIN;
           next_action_t1b(quarter_period);
@@ -257,7 +259,7 @@ ISR(TIMER1_COMPB_vect) {
 
       case SERVO_MIN:
           //Serial.println("SERVO_MIN");
-          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MIN_SERVO_PULSEWIDTH));
+          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,dynamic_servo_central, MIN_SERVO_PULSEWIDTH));
           pending_action_t1b  = RISING_NEUTRAL;
           next_action_t1b(quarter_period);
           // D9, blue LED, low enable
