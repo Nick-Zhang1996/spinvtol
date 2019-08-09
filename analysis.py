@@ -2,8 +2,7 @@
 # provides some sanity check routine for monocopter design
 import numpy as np
 import scipy.integrate as integrate
-from math import pi,sqrt
-
+from math import pi,sqrt 
 g = 9.81
 # air density
 rho = 1.2
@@ -100,10 +99,19 @@ analyze(2*pi*5,0.33,my_cord, 0.45)
 #analyze(3.3*pi*2,0.468,my_cord, 0.5) 
 
 # 55cm wing, good power, 3s lipo, and 7 deg installation angle
-analyze(3.85*pi*2,0.468+0.052,my_cord, 0.55) 
+#analyze(3.85*pi*2,0.468+0.052,my_cord, 0.55) 
 
 # 55cm wing, good power, 3s lipo, and 5 deg installation angle
-analyze(5*pi*2,0.468+0.052,my_cord, 0.55) 
+#analyze(5*pi*2,0.468+0.052,my_cord, 0.55) 
 
 # 55cm wing, good power, 3s lipo, and 3 deg installation angle
-analyze(6.25*pi*2,0.468+0.052,my_cord, 0.55) 
+#analyze(6.25*pi*2,0.468+0.052,my_cord, 0.55) 
+
+# 60cm wing, small weight added to the outside of the wing, extremely stable
+analyze(5*pi*2,0.468+0.052,my_cord, 0.6) 
+
+# 60cm wing, experimental
+analyze(5*pi*2,1.2,my_cord, 0.7) 
+
+# spinvtol theoretical validation
+#analyze(5*pi*2,0.8,my_cord, 0.6) 
