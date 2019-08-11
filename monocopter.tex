@@ -1,0 +1,62 @@
+\documentclass[12pt]{article}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{url}
+\newcommand{\pa}[1]{\paragraph{#1}\mbox{}\\}
+
+\title{Monocopter Manual}
+\author{Zhiyuan Zhang}
+\date{\today}
+
+\begin{document}
+\maketitle
+\section{Summary}
+This document aims to provide detailed instructions on reproducing all the design and fabrication process of a monocopter platform worked on by Zhiyuan Zhang during his internship at Computational Fabrication Group at MIT CSAIL in summer 2019.
+
+For any questions or comments, contact Zhiyuan Zhang at nickzhang@gatech.edu
+
+\section{Sizing Analysis}
+A typical design for a monocopter starts with rough sizing. 
+
+A takeoff weight is estimated from available propulsion system, payload, and structural layout of the monocopter. Once a weight is decided, blade element theory is utilized for determing the appropriate span and aspect ratio for the monocopter. Many iterations may be required to obtain a design with good desired properties.
+
+Some factors to consider include:
+\begin{itemize}
+  \item Structural strength, which eliminates the use of high aspect ratio and very thin airfoils.
+  \item Rotational Speed, upper bounds for rotational speed include structural strength, electronics' capabilities, maximum available propulsion, etc. Lower bounds include disk angle (discussed further in Tuning section), stability, etc.
+  \item Aerodynamic restrains, the $C_l$ must be reasonable for the airfoil chosen.
+  \item Tip velocity, too high tip velocity would be dangerous to pilot should a part comes loose.
+\end{itemize}
+
+A small script \texttt{analysis.py} calculates required $C_l$, disk loading, tip acceleration, tip velocity and some other specs from wing size, gross weight, and rotational speed.
+
+Current monocopter weights 500g and has a 11.7\% thickness Clark-Y airfoiled wing spanning 60cm with a cordlength of 19cm.
+Depending on the installation angle of the wing (-2 ~ 12 deg), the monocopter can hover with rotational speed ranging from 3.5 ~ 6 rev/s. 
+
+
+\subsection{Force Balance}
+For ease of discussion, define a right-hand cartesian coordinate system with original coincident with vehicle center of mass, X axis parallel to the carbon rod, pointing from the trailing edge to leading edge, Y axis parallel with wing span, pointing outward. Z axis points downward.
+
+Three moments are of particular importance for stable hovering of the monocopter. Forces mostly balance out with the rotation of the monocopter.
+
+First, moment around X axis. The lift from the wing generates a positive moment, balanced by 
+
+\section{Mechanical Components}
+This sections describes details of the mechanical components on the monocopter and means of fabrication.
+\subsection{Propulsion}
+
+
+\subsection{wing}
+\subsection{Tuning}
+
+\section{Software and Electronics}
+\subsection{Arduino based system}
+\subsubsection{Hardware}
+\subsubsection{Software}
+
+\subsection{Teensy based system}
+\subsubsection{Hardware}
+\subsubsection{Software}
+
+\end{document}
