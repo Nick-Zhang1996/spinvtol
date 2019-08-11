@@ -110,8 +110,12 @@ analyze(2*pi*5,0.33,my_cord, 0.45)
 # 60cm wing, small weight added to the outside of the wing, extremely stable
 analyze(5*pi*2,0.468+0.052,my_cord, 0.6) 
 
+
+# series of test
+analyze(3.57*pi*2,0.468+0.052,my_cord, 0.6) 
+
 # 60cm wing, experimental
-analyze(5*pi*2,1.2,my_cord, 0.7) 
+#analyze(5*pi*2,1.2,my_cord, 0.7) 
 
 # spinvtol theoretical validation
 #analyze(5*pi*2,0.8,my_cord, 0.6) 
