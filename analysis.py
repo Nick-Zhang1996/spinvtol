@@ -118,4 +118,4 @@ analyze(3.57*pi*2,0.468+0.052,my_cord, 0.6)
 #analyze(5*pi*2,1.2,my_cord, 0.7) 
 
 # spinvtol theoretical validation
-#analyze(5*pi*2,0.8,my_cord, 0.6) 
+analyze(5*pi*2,0.870,my_cord, 0.6) 
