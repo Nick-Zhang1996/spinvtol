@@ -10,6 +10,9 @@
 // flap servo output: 29
 // throttle  output(reserved, not used): 30
 
+// enable using dual ADXL345 for state estimation, comment out if using boards without them
+//#define DUALACC
+
 // 3 red led array
 #define PIN_LED 13
 #define PIN_LED1 9
@@ -76,8 +79,10 @@ FilterOnePole lowfilter(LOWPASS,10);
 // MPU9250 init sets Wire I2c freq(adxl345 does not), let it run first
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 
+#ifdef DUALACC
 Adafruit_ADXL345_Unified accel_in = Adafruit_ADXL345_Unified(1);
 Adafruit_ADXL345_Unified accel_out = Adafruit_ADXL345_Unified(2);
+#endif
 
 const float pi = 3.1415926535898;
 
@@ -300,6 +305,7 @@ void cyclic(){
 
 
 
+#ifdef DUALACC
 // ADXL 345
 
 void displaySensorDetails(Adafruit_ADXL345_Unified &accel)
@@ -403,6 +409,8 @@ void displayRange(Adafruit_ADXL345_Unified &accel)
   }
   Serial.println(F(" g"));
 }
+#endif
+
 
 const int xbee_rssi_pin = 3;
 volatile unsigned long xbee_rssi_last_rising;
@@ -465,6 +473,7 @@ void display_mag() {
   }
 }
 
+#ifdef DUALACC
 bool acc_verbose = true;
 void display_acc() {
   int rval = onoff(sCmd.next());
@@ -472,6 +481,7 @@ void display_acc() {
     acc_verbose = (bool)rval;
   }
 }
+#endif
 
 bool rc_verbose = true;
 void display_rc() {
@@ -499,7 +509,11 @@ void display_rssi() {
 void display_all() {
   int rval = onoff(sCmd.next());
   if (rval != -1) {
+#ifdef DUALACC
     rssi_verbose = acc_verbose = mag_verbose = rc_verbose = sig_verbose =  (bool)rval;
+#else
+    rssi_verbose = mag_verbose = rc_verbose = sig_verbose =  (bool)rval;
+#endif
   }
 }
 
@@ -576,6 +590,8 @@ void kf_predict(){
   return;
 }
 
+
+#ifdef DUALACC
 //z:acc observation, z = [delta_acc], unit: m/s2
 void kf_update_acc(float z){
 
@@ -632,6 +648,7 @@ void kf_update_acc(float z){
   // y = z - Hx post fit residual, not needed
   return;
 }
+#endif
 
 // this is called only once per rev, when algorithm picks up a signature
 // in mag output that signifies a particular azimuth angle is reached
@@ -708,9 +725,12 @@ void kf_update_mag(){
   return;
 }
 
+
+#ifdef DUALACC
 inline float acc_norm(sensors_event_t* event){
   return sqrt(event->acceleration.x*event->acceleration.x+event->acceleration.y*event->acceleration.y+event->acceleration.z*event->acceleration.z);
 }
+#endif
 
 
 
@@ -832,6 +852,8 @@ void setup() {
     abort();
   }
 
+
+#ifdef DUALACC
   // ---------------- ADXL345 init ----------------
   Serial.println(F("Accelerometer Init -- inner (0x53)")); Serial.println("");
   /* Initialise the sensor */
@@ -879,6 +901,7 @@ void setup() {
   //displayRange(accel_out);
   Serial.println("");
   // ----------- end ADXL345 init -----------
+#endif
 
   // --------  Register serial commands ------
   pinMode(13, OUTPUT);
@@ -901,7 +924,9 @@ void setup() {
   sCmd.addCommand("led2", led2); // test function, takes 1 argument on or off
   sCmd.addCommand("led3", led3); // test function, takes 1 argument on or off
   sCmd.addCommand("mag", display_mag);
+#ifdef DUALACC
   sCmd.addCommand("acc", display_acc);
+#endif
   sCmd.addCommand("rc", display_rc);
   sCmd.addCommand("sig", display_sig);
   sCmd.addCommand("rssi", display_rssi);
@@ -1004,6 +1029,7 @@ void loop() {
     }
   }
 
+#ifdef DUALACC
   //block -- Accelerometer update
   static int accel_update_freq = 10;
   static unsigned long accel_update_ts = millis();
@@ -1034,6 +1060,7 @@ void loop() {
       Serial.print(F("Z: ")); Serial.print(event_out.acceleration.z); Serial.print(F("  ")); Serial.println(F("m/s^2 "));
     }
   }
+#endif
 
   //block -- rc out
   static int rc_out_freq = 100;
@@ -1190,18 +1217,31 @@ void loop() {
     Serial.print(myIMU.mz,2);
     Serial.print(",");
     
+#ifdef DUALACC
     Serial.print(event_in.acceleration.x,2);
     Serial.print(",");
     Serial.print(event_in.acceleration.y,2);
     Serial.print(",");
     Serial.print(event_in.acceleration.z,2);
     Serial.print(",");
-
     Serial.print(event_out.acceleration.x,2);
     Serial.print(",");
     Serial.print(event_out.acceleration.y,2);
     Serial.print(",");
     Serial.print(event_out.acceleration.z,2);
+#else
+    Serial.print(-1.0,2);
+    Serial.print(",");
+    Serial.print(-1.0,2);
+    Serial.print(",");
+    Serial.print(-1.0,2);
+    Serial.print(",");
+    Serial.print(-1.0,2);
+    Serial.print(",");
+    Serial.print(-1.0,2);
+    Serial.print(",");
+    Serial.print(-1.0,2);
+#endif
 
     Serial.print(",");
     // unit: degree
