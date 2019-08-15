@@ -5,3 +5,6 @@
 [submodule "Arduino/libraries/TeensyDelay"]
 	path = Arduino/libraries/TeensyDelay
 	url = https://github.com/Nick-Zhang1996/TeensyDelay
+[submodule "Arduino/libraries/SparkFun_MPU-9250-DMP_Arduino_Library"]
+	path = Arduino/libraries/SparkFun_MPU-9250-DMP_Arduino_Library
+	url = https://github.com/sparkfun/SparkFun_MPU-9250-DMP_Arduino_Library.git
