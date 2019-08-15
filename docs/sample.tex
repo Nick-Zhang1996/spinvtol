@@ -1,0 +1,49 @@
+\documentclass[12pt]{article}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{url}
+\newcommand{\pa}[1]{\paragraph{#1}\mbox{}\\}
+
+\title{Project Planning with Function Tree}
+\author{Zhiyuan Zhang}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\centerline{ME2110 Section F}
+\centerline{Instructor: }
+\centerline{Dr. Thomas Kurfess}
+\centerline{Dr. Christopher Saldana}
+\centerline{Dr. P. Urbina}
+\centerline{TA: Daniel Moreno}
+\newpage
+
+
+\begin{figure}[H]
+\centering
+  \includegraphics[width=\linewidth]{functionTree.png}
+  \caption{Function Tree Analysis for Final Project}
+  \label{functree}
+\end{figure}
+
+A function tree analysis helps break down a complicated task that is difficult to implement. To win the competition, maximum points need to be gained from the scoring rules. There are four ways to gain points: Remove rubber bone from zone, rescue figure doll, collect tennis balls, and place ping-pong balls in red zone. Among these functions, Collecting tennis balls is relatively straightforward and requires little explanation, they need to be moved from boundary to competitors' home zone. The others however, are still vague and needs more detail. To remove the rubber bone from a competitor's zone, the mechanism needs to first engage, or come in contact with the rubber bone, and then move it out of the zone. To collect the figure doll, the mechanism need to detect the wall, then grab, or secure the doll, and finally retreat the doll from the centerplate. To place balls in the red zones, the mechanism must be able to differentiate between a blue zone and a red zone. Such information is encoded in the beacon. The mechanism would then place balls in the two red zone, one in each zone for maximum points. If possible, the machine should be able to clear the centerplate area to double points earned in this category.
+
+\end{document}
+
+\newpage
+
+\begin{thebibliography}{3}
+%J. K. Author. (year, month day). \textit{Title} (edition) [Type of medium]. Available: http://www.(URL)
+\bibitem{wiki-lawndarts} 
+Wikipedia contributors. (9 September 2017).  \textit{Lawn dart} (Version I.D. 799706270), Available: \url{en.wikipedia.org/wiki/Lawn_darts}
+\bibitem{wiki-toysafety} 
+Wikipedia contributors. (18 September 2017).  \textit{Lawn dart} (Version I.D. 801241125), Available: \url{https://en.wikipedia.org/wiki/Toy_safety#Lawn_darts}
+\bibitem{patent}
+Rizzo Bartolo, ``Dart construction'', U.S. Patent 3672678, Jun 27, 1972
+
+\end{thebibliography}
+
+
+
