@@ -6,7 +6,7 @@
 // most of these can be changed, though there are some restrictions
 // LED1,LED2,LED3, LED4(blue): 9,10,11,12
 // RSSI level from xbee: 3
-// RC channel PWM input: 4,5,6,7,8
+// RC channel PWM input: 4,5,6,7,8, connect to Ch1,3,4,6 on the RC receiver
 // flap servo output: 29
 // throttle  output(reserved, not used): 30
 
@@ -935,6 +935,7 @@ void setup() {
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
 
+  analogWriteFrequency(PIN_SERVO, 300);
   pending_action_cyclic = RISING_NEUTRAL;
   TeensyDelay::begin();
   TeensyDelay::addDelayChannel(cyclic, 0);
