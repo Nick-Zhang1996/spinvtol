@@ -133,13 +133,18 @@ You should not need to do everything above, we have several wings in stock, most
 \subsection{Other Components}
 The wing is the most easily damaged component. The rest should last forever, if not, most of the 3d printed parts have spares. We also have replacement propellers, make sure they are the right direction and installed in the right orientation.
 
+The rear landing gear is composed of a \#6-32 threaded rod, a 3d printed wheel hub, and a wheel machined from plastic. Spare wheel and wheel hub can be found in the leftover parts. The front landing gear is a plastic ring machined from a section of plastic water pipe. One spare can be found in the leftover parts. 
+
+
 \section{Software and Electronics}
+Several sets of software and electronics suite have been developed for this project, this section provides information about the their design and use, similarities and differences. Some information applies to all the boards, some specific to a particular version.
 
 \subsection{Power Supply}
-Three major components need to be powered:
+[Applicable to all] Four components need to be powered: ESC, Servo, avionics, and receiver. 
 \begin{itemize}
-  \item ESC: The speed controller takes power from a 3S Lipo battery \footnote{Originally the system is designed to work on 2S system, but more thrust was needed with the addition of control system, and the system was modified to take 3S}, mounted outboard on the electronics platform.
-
+  \item ESC: The speed controller takes power from a 3S Lipo battery \footnote{Originally the system is designed to work on 2S system, but more thrust was needed with the addition of control system, and the system was modified to take 3S}, mounted outboard on the electronics platform. 
+  \item Avionics: Arduino based boards have internal LDO regulator that allow the board to be powered directly via VIN pi from 7-12V. Which means a 2-3s Lipo battery can be directly used. Alternatively, it can be powered via a regulated 5V, available from BEC\footnote{Battery Elimination Circuit: ESCs with this feature will provide 5V to the red(middle) pin on its connector. ESCs without this functionality do not power the middle pin} circuit from certain ESCs. KDE ESCs do not have onboard BEC, but the BLHeli ESCs(smaller) do. If KDE ESC is used, board must be powered either directly by a separate 2S Lipo, or a reparate BEC module.  
+\end{itemize}
 \subsection{Arduino based system}
 An Arduino based system is currently installed on the monocopter and is used in most of the experiments. 
 \subsubsection{Hardware}
