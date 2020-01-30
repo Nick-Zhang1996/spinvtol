@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 # data processor for test stand and monocopter avionics
 import serial
 import curses
