@@ -11,7 +11,7 @@
 // throttle  output(reserved, not used): 30
 
 // enable using dual ADXL345 for state estimation, comment out if using boards without them
-//#define DUALACC
+#define DUALACC
 
 // 3 red led array
 #define PIN_LED 13
@@ -862,6 +862,8 @@ void setup() {
     /* There was a problem detecting the ADXL345 ... check your connections */
     Serial.println(F("Inner ADXL345 not detected"));
     while (1);
+  } else {
+      Serial.println(F("Success"));
   }
 
   /* Set the range to whatever is appropriate for your project */
@@ -885,6 +887,8 @@ void setup() {
     /* There was a problem detecting the ADXL345 ... check your connections */
     Serial.println(F("Outer ADXL345 not detected"));
     while (1);
+  } else {
+      Serial.println(F("Success"));
   }
 
   /* Set the range to whatever is appropriate for your project */
@@ -1231,6 +1235,7 @@ void loop() {
     Serial.print(",");
     Serial.print(event_out.acceleration.z,2);
 #else
+    // dummy output, ground station expects a fixed length packet
     Serial.print(-1.0,2);
     Serial.print(",");
     Serial.print(-1.0,2);
