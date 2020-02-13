@@ -44,7 +44,7 @@
 
 class SerialCommand {
   public:
-    SerialCommand();      // Constructor
+    SerialCommand(HardwareSerial& interface);      // Constructor
     void addCommand(const char *command, void(*function)());  // Add a command to the processing dictionary.
     void setDefaultHandler(void (*function)(const char *));   // A handler to call when no valid command received.
 
@@ -58,8 +58,11 @@ class SerialCommand {
       char command[SERIALCOMMAND_MAXCOMMANDLENGTH + 1];
       void (*function)();
     };                                    // Data structure to hold Command/Handler function key-value pairs
+
+    HardwareSerial serial;
     SerialCommandCallback *commandList;   // Actual definition for command/handler array
     byte commandCount;
+
 
     // Pointer to the default handler function
     void (*defaultHandler)(const char *);

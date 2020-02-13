@@ -13,8 +13,8 @@
 // enable using dual ADXL345 for state estimation, comment out if using boards without them
 #define DUALACC
 
-// 3 red led array
 #define PIN_LED 13
+// 3 red led array
 #define PIN_LED1 9
 #define PIN_LED2 10
 #define PIN_LED3 11
@@ -72,7 +72,7 @@ typedef mtx_type matrix;
 #define invert(A,m) Matrix.Invert((mtx_type*)A,m)
 #define mtxprint(A,m,n,N) Matrix.Print((mtx_type*)A, m, n, N)
 #define mtxcopy(A,m,n,B) Matrix.Copy((mtx_type*)A, m, n, (mtx_type*)B)
-SerialCommand sCmd;
+SerialCommand sCmd(Serial1);
 float dot;
 FilterOnePole lowfilter(LOWPASS,10);
 
@@ -245,7 +245,7 @@ void cyclic(){
   switch(pending_action_cyclic){
 
       case RISING_NEUTRAL:
-          //Serial.println("RISING_NEUTRAL");
+          //Serial1.println("RISING_NEUTRAL");
           //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MAX;
@@ -254,24 +254,24 @@ void cyclic(){
           quarter_period = 5e5*pi/state_buffer[1];
           current_phase = state_buffer[0] + float(micros()-state_buffer_ts)*1e-6*state_buffer[1];
           remaining_delay_us = (ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1])*1e6;
-          //Serial.print("current phase= ");
-          //Serial.println(ffmod(current_phase,2*pi)/pi*180);
-          //Serial.print("dist 2 ctrl phase= ");
-          //Serial.println((ffmod(ctrl_phase-current_phase,2*pi))/pi*180);
-          //Serial.print("wakeup after(s) ");
-          //Serial.println((ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1]));
-          //Serial.println(ffmod((ctrl_phase-current_phase)/2/pi,360));
+          //Serial1.print("current phase= ");
+          //Serial1.println(ffmod(current_phase,2*pi)/pi*180);
+          //Serial1.print("dist 2 ctrl phase= ");
+          //Serial1.println((ffmod(ctrl_phase-current_phase,2*pi))/pi*180);
+          //Serial1.print("wakeup after(s) ");
+          //Serial1.println((ffmod(ctrl_phase-current_phase,2*pi)/state_buffer[1]));
+          //Serial1.println(ffmod((ctrl_phase-current_phase)/2/pi,360));
           break;
           
       case SERVO_MAX:
-          //Serial.println("SERVO_MAX");
+          //Serial1.println("SERVO_MAX");
           setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MAX_SERVO_PULSEWIDTH));
           pending_action_cyclic = FALLING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
 
       case FALLING_NEUTRAL:
-          //Serial.println("FALLING_NEUTRAL");
+          //Serial1.println("FALLING_NEUTRAL");
           //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
           setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MIN;
@@ -279,7 +279,7 @@ void cyclic(){
           break;
 
       case SERVO_MIN:
-          //Serial.println("SERVO_MIN");
+          //Serial1.println("SERVO_MIN");
           setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MIN_SERVO_PULSEWIDTH));
           pending_action_cyclic  = RISING_NEUTRAL;
           remaining_delay_us = quarter_period;
@@ -287,7 +287,7 @@ void cyclic(){
 
       case NONE:
       default:
-          //Serial.println("fallthrough");
+          //Serial1.println("fallthrough");
           setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
           return;
           break;
@@ -312,102 +312,102 @@ void displaySensorDetails(Adafruit_ADXL345_Unified &accel)
 {
   sensor_t sensor;
   accel.getSensor(&sensor);
-  Serial.println(F("------------------------------------"));
-  Serial.print  (F("Sensor:       ")); Serial.println(sensor.name);
-  Serial.print  (F("Driver Ver:   ")); Serial.println(sensor.version);
-  Serial.print  (F("Unique ID:    ")); Serial.println(sensor.sensor_id);
-  Serial.print  (F("Max Value:    ")); Serial.print(sensor.max_value); Serial.println(F(" m/s^2"));
-  Serial.print  (F("Min Value:    ")); Serial.print(sensor.min_value); Serial.println(F(" m/s^2"));
-  Serial.print  (F("Resolution:   ")); Serial.print(sensor.resolution); Serial.println(F(" m/s^2"));
-  Serial.println(F("------------------------------------"));
-  Serial.println("");
+  Serial1.println(F("------------------------------------"));
+  Serial1.print  (F("Sensor:       ")); Serial1.println(sensor.name);
+  Serial1.print  (F("Driver Ver:   ")); Serial1.println(sensor.version);
+  Serial1.print  (F("Unique ID:    ")); Serial1.println(sensor.sensor_id);
+  Serial1.print  (F("Max Value:    ")); Serial1.print(sensor.max_value); Serial1.println(F(" m/s^2"));
+  Serial1.print  (F("Min Value:    ")); Serial1.print(sensor.min_value); Serial1.println(F(" m/s^2"));
+  Serial1.print  (F("Resolution:   ")); Serial1.print(sensor.resolution); Serial1.println(F(" m/s^2"));
+  Serial1.println(F("------------------------------------"));
+  Serial1.println("");
   delay(500);
 }
 
 void displayDataRate(Adafruit_ADXL345_Unified &accel)
 {
-  Serial.print  (F("Data Rate:    "));
+  Serial1.print  (F("Data Rate:    "));
 
   switch (accel.getDataRate())
   {
     case ADXL345_DATARATE_3200_HZ:
-      Serial.print  (F("3200 "));
+      Serial1.print  (F("3200 "));
       break;
     case ADXL345_DATARATE_1600_HZ:
-      Serial.print  (F("1600 "));
+      Serial1.print  (F("1600 "));
       break;
     case ADXL345_DATARATE_800_HZ:
-      Serial.print  (F("800 "));
+      Serial1.print  (F("800 "));
       break;
     case ADXL345_DATARATE_400_HZ:
-      Serial.print  (F("400 "));
+      Serial1.print  (F("400 "));
       break;
     case ADXL345_DATARATE_200_HZ:
-      Serial.print  (F("200 "));
+      Serial1.print  (F("200 "));
       break;
     case ADXL345_DATARATE_100_HZ:
-      Serial.print  (F("100 "));
+      Serial1.print  (F("100 "));
       break;
     case ADXL345_DATARATE_50_HZ:
-      Serial.print  (F("50 "));
+      Serial1.print  (F("50 "));
       break;
     case ADXL345_DATARATE_25_HZ:
-      Serial.print  (F("25 "));
+      Serial1.print  (F("25 "));
       break;
     case ADXL345_DATARATE_12_5_HZ:
-      Serial.print  (F("12.5 "));
+      Serial1.print  (F("12.5 "));
       break;
     case ADXL345_DATARATE_6_25HZ:
-      Serial.print  (F("6.25 "));
+      Serial1.print  (F("6.25 "));
       break;
     case ADXL345_DATARATE_3_13_HZ:
-      Serial.print  (F("3.13 "));
+      Serial1.print  (F("3.13 "));
       break;
     case ADXL345_DATARATE_1_56_HZ:
-      Serial.print  (F("1.56 "));
+      Serial1.print  (F("1.56 "));
       break;
     case ADXL345_DATARATE_0_78_HZ:
-      Serial.print  (F("0.78 "));
+      Serial1.print  (F("0.78 "));
       break;
     case ADXL345_DATARATE_0_39_HZ:
-      Serial.print  (F("0.39 "));
+      Serial1.print  (F("0.39 "));
       break;
     case ADXL345_DATARATE_0_20_HZ:
-      Serial.print  (F("0.20 "));
+      Serial1.print  (F("0.20 "));
       break;
     case ADXL345_DATARATE_0_10_HZ:
-      Serial.print  (F("0.10 "));
+      Serial1.print  (F("0.10 "));
       break;
     default:
-      Serial.print  (F("???? "));
+      Serial1.print  (F("???? "));
       break;
   }
-  Serial.println(F(" Hz"));
+  Serial1.println(F(" Hz"));
 }
 
 void displayRange(Adafruit_ADXL345_Unified &accel)
 {
-  Serial.print  (F("Range:         +/- "));
+  Serial1.print  (F("Range:         +/- "));
 
   switch (accel.getRange())
   {
     case ADXL345_RANGE_16_G:
-      Serial.print  (F("16 "));
+      Serial1.print  (F("16 "));
       break;
     case ADXL345_RANGE_8_G:
-      Serial.print  (F("8 "));
+      Serial1.print  (F("8 "));
       break;
     case ADXL345_RANGE_4_G:
-      Serial.print  (F("4 "));
+      Serial1.print  (F("4 "));
       break;
     case ADXL345_RANGE_2_G:
-      Serial.print  (F("2 "));
+      Serial1.print  (F("2 "));
       break;
     default:
-      Serial.print  (F("?? "));
+      Serial1.print  (F("?? "));
       break;
   }
-  Serial.println(F(" g"));
+  Serial1.println(F(" g"));
 }
 #endif
 
@@ -462,6 +462,13 @@ void led3() {
   int rval = onoff(sCmd.next());
   if (rval != -1) {
     digitalWrite(PIN_LED3, !rval);
+  }
+}
+
+void led4() {
+  int rval = onoff(sCmd.next());
+  if (rval != -1) {
+    digitalWrite(PIN_LED4, !rval);
   }
 }
 
@@ -534,8 +541,8 @@ unsigned long epoch;
 void synchronize(){
   digitalWrite(synchro_pinno,LOW);
   epoch = millis();
-  Serial.print(F("Syncing ... epoch = "));
-  Serial.println(epoch);
+  Serial1.print(F("Syncing ... epoch = "));
+  Serial1.println(epoch);
   //delay(1);
   digitalWrite(synchro_pinno,HIGH);
 }
@@ -565,16 +572,16 @@ void kf_predict(){
   F[0][1] = delta_t;
   // x = Fx + Bu (no control so no Bu here)
   
-  //Serial.print(F("entering prediction = "));
-  //Serial.print("kf_dt : ");
-  //Serial.print(delta_t);
+  //Serial1.print(F("entering prediction = "));
+  //Serial1.print("kf_dt : ");
+  //Serial1.print(delta_t);
 
   multiply(F,x,2,2,1,buff_col);
   mtxcopy(buff_col,2,1,x);
   
   //mtxprint(F,2,2,"F");
   //mtxprint(x,2,1,"x");
-  //Serial.print("prediction -> ");
+  //Serial1.print("prediction -> ");
   //mtxprint(x,2,1,"x");
 
   // P = FPF.T + Q
@@ -636,7 +643,7 @@ void kf_update_acc(float z){
   multiply(K,y,2,1,1,buff_col);
   //mtxprint(buff_col,2,1,"Ky");
   add(x,buff_col,2,1,x);
-  //Serial.print("update -> ");
+  //Serial1.print("update -> ");
   //mtxprint(x,2,1,"x");
 
   
@@ -656,7 +663,7 @@ void kf_update_acc(float z){
 //z:mag observation, always zero since we update at reference point only
 // TODO make variance a function of omega, low omega mean less error
 void kf_update_mag(){
-  //Serial.print("update ->");
+  //Serial1.print("update ->");
   //mtxprint(x,2,1,"x");
   
   static float z = 0.0;
@@ -683,8 +690,8 @@ void kf_update_mag(){
 
   matrix y[1][1];
   y[0][0] = z - buff_single[0][0];
-  //Serial.print("y ");
-  //Serial.println(y[0][0]);
+  //Serial1.print("y ");
+  //Serial1.println(y[0][0]);
   // S = HPH.T + R
   
   multiply(H,P,1,2,2,buff_row);
@@ -692,8 +699,8 @@ void kf_update_mag(){
   
   // covariance of innovation
   S = buff_single[0][0] + mag_variance;
-  //Serial.print("S :");
-  //Serial.println(S);
+  //Serial1.print("S :");
+  //Serial1.println(S);
   //mtxprint(P,2,2,"P");
   //mtxprint(H,1,2,"H");
   // K = P HT S-1 ----------------------
@@ -706,15 +713,15 @@ void kf_update_mag(){
   multiply(K,y,2,1,1,buff_col);
   //mtxprint(buff_col,2,1,"Ky");
   add(x,buff_col,2,1,x);
-//  Serial.print("update -> ");
-//  Serial.print(" K ");
-//  Serial.print(K[0][0]);
-//  Serial.print(" ");
-//  Serial.print(K[1][0]);
-//  Serial.print(" x: ");
-//  Serial.print(x[0][0]);
-//  Serial.print(" ");
-//  Serial.println(x[1][0]);
+//  Serial1.print("update -> ");
+//  Serial1.print(" K ");
+//  Serial1.print(K[0][0]);
+//  Serial1.print(" ");
+//  Serial1.print(K[1][0]);
+//  Serial1.print(" x: ");
+//  Serial1.print(x[0][0]);
+//  Serial1.print(" ");
+//  Serial1.println(x[1][0]);
   
   // P = (I-KH)P
   multiply(K,H,2,1,2,buff_square);
@@ -735,8 +742,8 @@ inline float acc_norm(sensors_event_t* event){
 
 
 void setup() {
-  Serial.begin(115200);
-  while (!Serial);
+  Serial1.begin(115200);
+  //while (!Serial);
 
   for (uint8_t i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
     pinMode(rc_in_pinno[i], INPUT);
@@ -753,29 +760,29 @@ void setup() {
   Wire.begin();
   // Read the WHO_AM_I register, this is a good test of communication
   byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
-  Serial.print(F("MPU9250 I AM 0x"));
-  Serial.print(c, HEX);
-  Serial.print(F(" I should be 0x"));
-  Serial.println(0x71, HEX);
+  Serial1.print(F("MPU9250 I AM 0x"));
+  Serial1.print(c, HEX);
+  Serial1.print(F(" I should be 0x"));
+  Serial1.println(0x71, HEX);
 
   if (c == 0x71) // WHO_AM_I should always be 0x71
   {
-    Serial.println(F("MPU9250 is online..."));
+    Serial1.println(F("MPU9250 is online..."));
 
     // Start by performing self test and reporting values
     myIMU.MPU9250SelfTest(myIMU.selfTest);
-    Serial.print(F("x-axis self test: acceleration trim within : "));
-    Serial.print(myIMU.selfTest[0], 1); Serial.println(F("% of factory value"));
-    Serial.print(F("y-axis self test: acceleration trim within : "));
-    Serial.print(myIMU.selfTest[1], 1); Serial.println(F("% of factory value"));
-    Serial.print(F("z-axis self test: acceleration trim within : "));
-    Serial.print(myIMU.selfTest[2], 1); Serial.println(F("% of factory value"));
-    Serial.print(F("x-axis self test: gyration trim within : "));
-    Serial.print(myIMU.selfTest[3], 1); Serial.println(F("% of factory value"));
-    Serial.print(F("y-axis self test: gyration trim within : "));
-    Serial.print(myIMU.selfTest[4], 1); Serial.println(F("% of factory value"));
-    Serial.print(F("z-axis self test: gyration trim within : "));
-    Serial.print(myIMU.selfTest[5], 1); Serial.println(F("% of factory value"));
+    Serial1.print(F("x-axis self test: acceleration trim within : "));
+    Serial1.print(myIMU.selfTest[0], 1); Serial1.println(F("% of factory value"));
+    Serial1.print(F("y-axis self test: acceleration trim within : "));
+    Serial1.print(myIMU.selfTest[1], 1); Serial1.println(F("% of factory value"));
+    Serial1.print(F("z-axis self test: acceleration trim within : "));
+    Serial1.print(myIMU.selfTest[2], 1); Serial1.println(F("% of factory value"));
+    Serial1.print(F("x-axis self test: gyration trim within : "));
+    Serial1.print(myIMU.selfTest[3], 1); Serial1.println(F("% of factory value"));
+    Serial1.print(F("y-axis self test: gyration trim within : "));
+    Serial1.print(myIMU.selfTest[4], 1); Serial1.println(F("% of factory value"));
+    Serial1.print(F("z-axis self test: gyration trim within : "));
+    Serial1.print(myIMU.selfTest[5], 1); Serial1.println(F("% of factory value"));
 
     // Calibrate gyro and accelerometers, load biases in bias registers
     myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
@@ -783,37 +790,37 @@ void setup() {
     myIMU.initMPU9250();
     // Initialize device for active mode read of acclerometer, gyroscope, and
     // temperature
-    Serial.println(F("MPU9250 initialized for active data mode...."));
+    Serial1.println(F("MPU9250 initialized for active data mode...."));
 
     // Read the WHO_AM_I register of the magnetometer, this is a good test of
     // communication
     byte d = myIMU.readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);
-    Serial.print(F("AK8963 "));
-    Serial.print(F("I AM 0x"));
-    Serial.print(d, HEX);
-    Serial.print(F(" I should be 0x"));
-    Serial.println(0x48, HEX);
+    Serial1.print(F("AK8963 "));
+    Serial1.print(F("I AM 0x"));
+    Serial1.print(d, HEX);
+    Serial1.print(F(" I should be 0x"));
+    Serial1.println(0x48, HEX);
 
     if (d != 0x48)
     {
       // Communication failed, stop here
-      Serial.println(F("Communication failed, abort!"));
-      Serial.flush();
+      Serial1.println(F("Communication failed, abort!"));
+      Serial1.flush();
       abort();
     }
 
     // Get magnetometer calibration from AK8963 ROM
     myIMU.initAK8963(myIMU.factoryMagCalibration);
     // Initialize device for active mode read of magnetometer
-    Serial.println(F("AK8963 initialized for active data mode...."));
+    Serial1.println(F("AK8963 initialized for active data mode...."));
 
-    //  Serial.println("Calibration values: ");
-    Serial.print(F("X-Axis factory sensitivity adjustment value "));
-    Serial.println(myIMU.factoryMagCalibration[0], 2);
-    Serial.print(F("Y-Axis factory sensitivity adjustment value "));
-    Serial.println(myIMU.factoryMagCalibration[1], 2);
-    Serial.print(F("Z-Axis factory sensitivity adjustment value "));
-    Serial.println(myIMU.factoryMagCalibration[2], 2);
+    //  Serial1.println("Calibration values: ");
+    Serial1.print(F("X-Axis factory sensitivity adjustment value "));
+    Serial1.println(myIMU.factoryMagCalibration[0], 2);
+    Serial1.print(F("Y-Axis factory sensitivity adjustment value "));
+    Serial1.println(myIMU.factoryMagCalibration[1], 2);
+    Serial1.print(F("Z-Axis factory sensitivity adjustment value "));
+    Serial1.println(myIMU.factoryMagCalibration[2], 2);
 
 
     // Get sensor resolutions, only need to do this once
@@ -824,46 +831,46 @@ void setup() {
     // The next call delays for 4 seconds, and then records about 15 seconds of
     // data to calculate bias and scale.
     //    myIMU.magCalMPU9250(myIMU.magBias, myIMU.magScale);
-    Serial.println(F("AK8963 mag biases (mG)"));
-    Serial.println(myIMU.magBias[0]);
-    Serial.println(myIMU.magBias[1]);
-    Serial.println(myIMU.magBias[2]);
+    Serial1.println(F("AK8963 mag biases (mG)"));
+    Serial1.println(myIMU.magBias[0]);
+    Serial1.println(myIMU.magBias[1]);
+    Serial1.println(myIMU.magBias[2]);
 
-    Serial.println(F("AK8963 mag scale (mG)"));
-    Serial.println(myIMU.magScale[0]);
-    Serial.println(myIMU.magScale[1]);
-    Serial.println(myIMU.magScale[2]);
+    Serial1.println(F("AK8963 mag scale (mG)"));
+    Serial1.println(myIMU.magScale[0]);
+    Serial1.println(myIMU.magScale[1]);
+    Serial1.println(myIMU.magScale[2]);
 
-    Serial.println(F("Magnetometer:"));
-    Serial.print(F("X-Axis sensitivity adjustment value "));
-    Serial.println(myIMU.factoryMagCalibration[0], 2);
-    Serial.print(F("Y-Axis sensitivity adjustment value "));
-    Serial.println(myIMU.factoryMagCalibration[1], 2);
-    Serial.print(F("Z-Axis sensitivity adjustment value "));
-    Serial.println(myIMU.factoryMagCalibration[2], 2);
+    Serial1.println(F("Magnetometer:"));
+    Serial1.print(F("X-Axis sensitivity adjustment value "));
+    Serial1.println(myIMU.factoryMagCalibration[0], 2);
+    Serial1.print(F("Y-Axis sensitivity adjustment value "));
+    Serial1.println(myIMU.factoryMagCalibration[1], 2);
+    Serial1.print(F("Z-Axis sensitivity adjustment value "));
+    Serial1.println(myIMU.factoryMagCalibration[2], 2);
   } else
   {
-    Serial.print(F("Could not connect to MPU9250: 0x"));
-    Serial.println(c, HEX);
+    Serial1.print(F("Could not connect to MPU9250: 0x"));
+    Serial1.println(c, HEX);
 
     // Communication failed, stop here
-    Serial.println(F("Communication failed, abort!"));
-    Serial.flush();
+    Serial1.println(F("Communication failed, abort!"));
+    Serial1.flush();
     abort();
   }
 
 
 #ifdef DUALACC
   // ---------------- ADXL345 init ----------------
-  Serial.println(F("Accelerometer Init -- inner (0x53)")); Serial.println("");
+  Serial1.println(F("Accelerometer Init -- inner (0x53)")); Serial1.println("");
   /* Initialise the sensor */
   if (!accel_in.begin())
   {
     /* There was a problem detecting the ADXL345 ... check your connections */
-    Serial.println(F("Inner ADXL345 not detected"));
+    Serial1.println(F("Inner ADXL345 not detected"));
     while (1);
   } else {
-      Serial.println(F("Success"));
+      Serial1.println(F("Success"));
   }
 
   /* Set the range to whatever is appropriate for your project */
@@ -878,17 +885,17 @@ void setup() {
   /* Display additional settings (outside the scope of sensor_t) */
   //displayDataRate(accel_in);
   //displayRange(accel_in);
-  Serial.println("");
+  Serial1.println("");
   // ------ outer ADXL345
-  Serial.println(F("Accelerometer Init -- outer (0x1D)")); Serial.println("");
+  Serial1.println(F("Accelerometer Init -- outer (0x1D)")); Serial1.println("");
   /* Initialise the sensor */
   if (!accel_out.begin(0x1D))
   {
     /* There was a problem detecting the ADXL345 ... check your connections */
-    Serial.println(F("Outer ADXL345 not detected"));
+    Serial1.println(F("Outer ADXL345 not detected"));
     while (1);
   } else {
-      Serial.println(F("Success"));
+      Serial1.println(F("Success"));
   }
 
   /* Set the range to whatever is appropriate for your project */
@@ -903,7 +910,7 @@ void setup() {
   /* Display additional settings (outside the scope of sensor_t) */
   //displayDataRate(accel_out);
   //displayRange(accel_out);
-  Serial.println("");
+  Serial1.println("");
   // ----------- end ADXL345 init -----------
 #endif
 
@@ -927,6 +934,7 @@ void setup() {
   sCmd.addCommand("led1", led1); // test function, takes 1 argument on or off
   sCmd.addCommand("led2", led2); // test function, takes 1 argument on or off
   sCmd.addCommand("led3", led3); // test function, takes 1 argument on or off
+  sCmd.addCommand("led4", led4); // test function, takes 1 argument on or off
   sCmd.addCommand("mag", display_mag);
 #ifdef DUALACC
   sCmd.addCommand("acc", display_acc);
@@ -971,16 +979,16 @@ void loop() {
   if ( (millis() - serial_update_ts) > (unsigned long) (1000 / float(serial_update_freq)) ) {
     serial_update_ts = millis();
     if (rc_verbose && human_readable_output) {
-      Serial.print(F("RC in : ch0 : "));
-      Serial.print(rc_in_val[0]);
-      Serial.print(F(" | ch1 : "));
-      Serial.print(rc_in_val[1]);
-      Serial.print(F(" | ch2 : "));
-      Serial.print(rc_in_val[2]);
-      Serial.print(F(" | ch3 : "));
-      Serial.print(rc_in_val[3]);
-      Serial.print(F(" -> "));
-      Serial.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+      Serial1.print(F("RC in : ch0 : "));
+      Serial1.print(rc_in_val[0]);
+      Serial1.print(F(" | ch1 : "));
+      Serial1.print(rc_in_val[1]);
+      Serial1.print(F(" | ch2 : "));
+      Serial1.print(rc_in_val[2]);
+      Serial1.print(F(" | ch3 : "));
+      Serial1.print(rc_in_val[3]);
+      Serial1.print(F(" -> "));
+      Serial1.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
     }
   }
   // block ----
@@ -1009,12 +1017,12 @@ void loop() {
 
       // Print mag values in degree/sec
       if (mag_verbose && human_readable_output) {
-        Serial.print(F("X-mag field: ")); Serial.print(myIMU.mx);
-        Serial.print(F(" mG "));
-        Serial.print(F("Y-mag field: ")); Serial.print(myIMU.my);
-        Serial.print(F(" mG "));
-        Serial.print(F("Z-mag field: ")); Serial.print(myIMU.mz);
-        Serial.println(F(" mG"));
+        Serial1.print(F("X-mag field: ")); Serial1.print(myIMU.mx);
+        Serial1.print(F(" mG "));
+        Serial1.print(F("Y-mag field: ")); Serial1.print(myIMU.my);
+        Serial1.print(F(" mG "));
+        Serial1.print(F("Z-mag field: ")); Serial1.print(myIMU.mz);
+        Serial1.println(F(" mG"));
       } 
   }
   //block ----------
@@ -1025,11 +1033,11 @@ void loop() {
   if ( (millis() - rssi_update_ts) > (unsigned long) (1000 / float(rssi_update_freq)) ) {
     if (rssi_verbose && human_readable_output){
       if (xbee_rssi_newdata){
-        Serial.print(F("RSSI : "));
-        Serial.println(xbee_rssi_val);
+        Serial1.print(F("RSSI : "));
+        Serial1.println(xbee_rssi_val);
         xbee_rssi_newdata = false;
       } else{
-        Serial.println(F("No RSSI update"));
+        Serial1.println(F("No RSSI update"));
       }
     }
   }
@@ -1052,17 +1060,17 @@ void loop() {
 
     if (acc_verbose && human_readable_output) {
       /* Display the results (acceleration is measured in m/s^2) */
-      Serial.print(F("Innter - X: ")); Serial.print(event_in.acceleration.x); Serial.print(F("  "));
-      Serial.print(F("Y: ")); Serial.print(event_in.acceleration.y); Serial.print(F("  "));
-      Serial.print(F("Z: ")); Serial.print(event_in.acceleration.z); Serial.print(F("  ")); Serial.print(F("m/s^2      "));
+      Serial1.print(F("Innter - X: ")); Serial1.print(event_in.acceleration.x); Serial1.print(F("  "));
+      Serial1.print(F("Y: ")); Serial1.print(event_in.acceleration.y); Serial1.print(F("  "));
+      Serial1.print(F("Z: ")); Serial1.print(event_in.acceleration.z); Serial1.print(F("  ")); Serial1.print(F("m/s^2      "));
     }
 
 
     if (acc_verbose && human_readable_output) {
       /* Display the results (acceleration is measured in m/s^2) */
-      Serial.print(F("outer X: ")); Serial.print(event_out.acceleration.x); Serial.print(F("  "));
-      Serial.print(F("Y: ")); Serial.print(event_out.acceleration.y); Serial.print(F("  "));
-      Serial.print(F("Z: ")); Serial.print(event_out.acceleration.z); Serial.print(F("  ")); Serial.println(F("m/s^2 "));
+      Serial1.print(F("outer X: ")); Serial1.print(event_out.acceleration.x); Serial1.print(F("  "));
+      Serial1.print(F("Y: ")); Serial1.print(event_out.acceleration.y); Serial1.print(F("  "));
+      Serial1.print(F("Z: ")); Serial1.print(event_out.acceleration.z); Serial1.print(F("  ")); Serial1.println(F("m/s^2 "));
     }
   }
 #endif
@@ -1088,7 +1096,7 @@ void loop() {
     unsigned long us_since_last_rc_in = micros() - rc_rising_ts[0];
     if (us_since_last_rc_in > 500000) {
       if (sig_verbose && human_readable_output){
-        Serial.println(F("Signal loss"));
+        Serial1.println(F("Signal loss"));
       }
       flag_signal_loss = true;
     } else {
@@ -1123,13 +1131,13 @@ void loop() {
 
       // servo actuation/buffered phase update
       if (x[1][0]>2*pi*8){
-        Serial.println(F("Warning: omega too high"));
+        Serial1.println(F("Warning: omega too high"));
         flag_servo_protect = true;
         pending_action_cyclic = NONE;
         setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
         digitalWrite(PIN_LED4,HIGH);
       } else if (x[1][0]<2*pi) {
-        Serial.println(F("Omega too low, servo disabled"));
+        Serial1.println(F("Omega too low, servo disabled"));
         flag_servo_protect = true;
         pending_action_cyclic = NONE;
         setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
@@ -1138,7 +1146,7 @@ void loop() {
         // suitable omega for control
         if (flag_servo_protect){
           // disable ''failsafe''
-          Serial.println(F("Resume Servo Control"));
+          Serial1.println(F("Resume Servo Control"));
           flag_servo_protect = false;
           pending_action_cyclic = RISING_NEUTRAL;
         }
@@ -1150,7 +1158,7 @@ void loop() {
         interrupts();
       }
 
-      Serial.println("mag update--");
+      Serial1.println("mag update--");
       // Setup LED to blink when azimuth = ref_heading
       if (!flash_in_progress){
         // time needed to travel 30 degrees, so that light will be on for 30 deg
@@ -1162,22 +1170,22 @@ void loop() {
           flash_in_progress = true;
           pending_action_blinker = LED_ON;
           blinkerTimer.begin(blinker,blinker_delay_us);
-          //Serial.println(F("LED on in- "));
-          //Serial.println(blinker_delay);
+          //Serial1.println(F("LED on in- "));
+          //Serial1.println(blinker_delay);
         } else {
-          //Serial.print("neg omega - ");
-          //Serial.println(blinker_delay);
+          //Serial1.print("neg omega - ");
+          //Serial1.println(blinker_delay);
         }
       } else {
 
       }
 /*
-      Serial.print("omega = ");
-      Serial.print(x[1][0]);
-      Serial.print(" theta = ");
-      Serial.print(x[0][0]);
-      Serial.print("in ");
-      Serial.println((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
+      Serial1.print("omega = ");
+      Serial1.print(x[1][0]);
+      Serial1.print(" theta = ");
+      Serial1.print(x[0][0]);
+      Serial1.print("in ");
+      Serial1.println((2*pi-(x[0][0]-(2*pi*floor(x[0][0]/2.0/pi))))/x[1][0]*1000.0);
 */
   }
   mag_index%=4;
@@ -1211,61 +1219,61 @@ void loop() {
     // signify this is a line intended for machine parsing
 
 
-    Serial.print('#');
+    Serial1.print('#');
 
-    Serial.print(millis()-epoch);
-    Serial.print(",");
-    Serial.print(myIMU.mx,2);
-    Serial.print(",");
-    Serial.print(myIMU.my,2);
-    Serial.print(",");
-    Serial.print(myIMU.mz,2);
-    Serial.print(",");
+    Serial1.print(millis()-epoch);
+    Serial1.print(",");
+    Serial1.print(myIMU.mx,2);
+    Serial1.print(",");
+    Serial1.print(myIMU.my,2);
+    Serial1.print(",");
+    Serial1.print(myIMU.mz,2);
+    Serial1.print(",");
     
 #ifdef DUALACC
-    Serial.print(event_in.acceleration.x,2);
-    Serial.print(",");
-    Serial.print(event_in.acceleration.y,2);
-    Serial.print(",");
-    Serial.print(event_in.acceleration.z,2);
-    Serial.print(",");
-    Serial.print(event_out.acceleration.x,2);
-    Serial.print(",");
-    Serial.print(event_out.acceleration.y,2);
-    Serial.print(",");
-    Serial.print(event_out.acceleration.z,2);
+    Serial1.print(event_in.acceleration.x,2);
+    Serial1.print(",");
+    Serial1.print(event_in.acceleration.y,2);
+    Serial1.print(",");
+    Serial1.print(event_in.acceleration.z,2);
+    Serial1.print(",");
+    Serial1.print(event_out.acceleration.x,2);
+    Serial1.print(",");
+    Serial1.print(event_out.acceleration.y,2);
+    Serial1.print(",");
+    Serial1.print(event_out.acceleration.z,2);
 #else
     // dummy output, ground station expects a fixed length packet
-    Serial.print(-1.0,2);
-    Serial.print(",");
-    Serial.print(-1.0,2);
-    Serial.print(",");
-    Serial.print(-1.0,2);
-    Serial.print(",");
-    Serial.print(-1.0,2);
-    Serial.print(",");
-    Serial.print(-1.0,2);
-    Serial.print(",");
-    Serial.print(-1.0,2);
+    Serial1.print(-1.0,2);
+    Serial1.print(",");
+    Serial1.print(-1.0,2);
+    Serial1.print(",");
+    Serial1.print(-1.0,2);
+    Serial1.print(",");
+    Serial1.print(-1.0,2);
+    Serial1.print(",");
+    Serial1.print(-1.0,2);
+    Serial1.print(",");
+    Serial1.print(-1.0,2);
 #endif
 
-    Serial.print(",");
+    Serial1.print(",");
     // unit: degree
     // may not need
     kf_predict();
     long offset = (long)(x[0][0]/pi*180)/360*360;
-    Serial.print(x[0][0]/pi*180-offset);
-    Serial.print(",");
+    Serial1.print(x[0][0]/pi*180-offset);
+    Serial1.print(",");
     //unit: rev/s
-    Serial.println(x[1][0]/2.0/pi);
+    Serial1.println(x[1][0]/2.0/pi);
 
     
-//    Serial.print(" ref: ");
-//    Serial.print(ref_heading/pi*180);
-//    Serial.print("  ctrl ");
-//    Serial.println((ctrl_phase-ref_heading)/pi*180);
+//    Serial1.print(" ref: ");
+//    Serial1.print(ref_heading/pi*180);
+//    Serial1.print("  ctrl ");
+//    Serial1.println((ctrl_phase-ref_heading)/pi*180);
 
-    //Serial.println(millis()-loop_ts);
+    //Serial1.println(millis()-loop_ts);
     loop_ts = millis();
   }
 
@@ -1284,7 +1292,7 @@ void loop() {
         P[1][1] = 0;
         // stationary
         if (flag_running){
-          Serial.println("Stopped");
+          Serial1.println("Stopped");
           flag_running = false;
           flag_servo_protect = true;
           pending_action_cyclic = NONE;
@@ -1294,7 +1302,7 @@ void loop() {
       }
     
     if (!flag_running){
-       //Serial.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+       //Serial1.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
        setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
     }
 }
