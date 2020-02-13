@@ -12,8 +12,20 @@ from time import time
 from vicon import Vicon
 import serial
 import os.path
+from signal import signal, SIGINT
+from sys import exit
+
+def exitHandler(signal_received, frame):
+    # Handle any cleanup here
+    print("Exiting...")
+    with open(logFilename, 'a') as filehandle:
+        for entry in records:
+                filehandle.write('%s' % entry)
+    print("file saved: "+logFilename)
+    exit(0)
 
 def captureOnce():
+    ready = False
     if (radio.in_waiting>11):
         line = radio.readline()
         if (chr(line[0])=='#'):
@@ -21,34 +33,42 @@ def captureOnce():
             try:
                 # remove prefix #, suffix \r\n 
                 data = [float(i) for i in line[1:-2].split(b',')]
-                if (len(data)==3):
+                if (len(data)==2):
                     throttle = data[0]
                     flap = data[1]
+                    ready = True
             except ValueError:
                 # this is not a machine readable line, no big deal
                 pass
-    (x,y,z,rx,ry,rz) = vi.getViconUpdate()
-    dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttle)+","+str(flap)+"\n")
-    records.append(dataFrame)
-    print(dataFrame)
+    #(x,y,z,rx,ry,rz) = vi.getViconUpdate()
+    #dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttle)+","+str(flap)+"\n")
+    if ready:
+        dataFrame = str(time())+","+'%d'%throttle+","+'%d'%flap+"\n"
+        records.append(dataFrame)
+        print(dataFrame)
 
 if __name__ == '__main__':
+    signal(SIGINT,exitHandler)
+
     radioReceiverCommPort = '/dev/ttyUSB0'
     logFolder = "./log/"
     logPrefix = "run"
+    logSuffix = ".txt"
     no = 1
-    while os.path.isfile(logFolder+logPrefix+str(no)):
+    while os.path.isfile(logFolder+logPrefix+str(no)+logSuffix):
         no += 1
-    logFilename = logFolder+logPrefix+str(no)
+    logFilename = logFolder+logPrefix+str(no)+logSuffix
 
     vi = Vicon()
 
     records = []
     with serial.Serial(radioReceiverCommPort,115200, timeout=0.001) as radio:
-        captureOnce()
+        print("recording... Press Ctrl-C to stop")
+        while True:
+            captureOnce()
 
-        if len(records)>1000:
-            with open(logFilename, 'a') as filehandle:
-                for entry in records:
-                        filehandle.write('%s' % entry)
-            records = []
+            if len(records)>1000:
+                with open(logFilename, 'a') as filehandle:
+                    for entry in records:
+                            filehandle.write('%s' % entry)
+                records = []
