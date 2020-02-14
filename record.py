@@ -25,7 +25,10 @@ def exitHandler(signal_received, frame):
     exit(0)
 
 def captureOnce():
+    # flush serial
     ready = False
+    while (radio.in_waiting>17):
+        line = radio.readline()
     if (radio.in_waiting>11):
         line = radio.readline()
         if (chr(line[0])=='#'):
@@ -40,10 +43,11 @@ def captureOnce():
             except ValueError:
                 # this is not a machine readable line, no big deal
                 pass
-    #(x,y,z,rx,ry,rz) = vi.getViconUpdate()
-    #dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttle)+","+str(flap)+"\n")
+    # a bit sketchy sync...
     if ready:
-        dataFrame = str(time())+","+'%d'%throttle+","+'%d'%flap+"\n"
+        (x,y,z,rx,ry,rz) = vi.getViconUpdate()
+        dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttle)+","+str(flap)+"\n"
+        #dataFrame = '%d'%throttle+","+'%d'%flap+"\n"
         records.append(dataFrame)
         print(dataFrame)
 
