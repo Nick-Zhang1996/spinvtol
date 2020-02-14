@@ -59,8 +59,10 @@ if __name__ == '__main__':
     loss_count = 0
     while False:
         print(vi.getViconUpdate())
-    for i in range(10):
-        print("Freq = "+str(vi.testFreq())+"Hz")
+    # test freq
+    if True:
+        for i in range(10):
+            print("Freq = "+str(vi.testFreq())+"Hz")
 
         
     
