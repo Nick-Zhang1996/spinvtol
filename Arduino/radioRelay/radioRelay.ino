@@ -38,6 +38,7 @@ void setup() {
     enableInterrupt( rc_in_pinno[i], rc_in_callback, CHANGE);
   }
 }
+unsigned long last_serial_ts = 0;
 void loop(){
   //block -- loss of signal
   static int loss_of_signal_freq = 10;
@@ -57,10 +58,17 @@ void loop(){
     }
   }
   // block ---
+  // this gives 300Hz output rate
+  while ((micros()-last_serial_ts)<1860) {;}
 
-  Serial.print("#");
-  Serial.print(rc_in_val[0]);
-  Serial.print(",");
-  Serial.println(rc_in_val[1]);
+  if (true) {
+      last_serial_ts = micros();
+      Serial.print("#");
+      //Serial.print(millis());
+      //Serial.print(",");
+      Serial.print(rc_in_val[0]);
+      Serial.print(",");
+      Serial.println(rc_in_val[1]);
+  }
 }
   
