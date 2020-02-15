@@ -19,6 +19,7 @@ with serial.Serial(radioReceiverCommPort,115200, timeout=0.0033) as radio:
                     if (len(data)==2):
                         throttle = data[0]
                         flap = data[1]
+                        #print(throttle,flap)
                         count += 1
                 except ValueError:
                     # this is not a machine readable line, no big deal
