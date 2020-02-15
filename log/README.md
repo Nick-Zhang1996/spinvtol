@@ -4,3 +4,9 @@ run2: longer low hover, with vid
 run3: slight rising
 run4: hover, pause for reposition, rising
 battery drained at 3.77/cell
+
+
+run5: starting at 4.2v, multiple ascend, hover, and descend
+run6: 3.81V with flap partially down, ascend,hover, and descend
+run7: 3.76V with flap fully down, ascend, hover, descend, end with 3.71v
+run8: 4.2V full flap, multiple ascend, ...
