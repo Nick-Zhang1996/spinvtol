@@ -33,7 +33,7 @@ class Vicon:
         x = unpack('d',data[32:40])[0]/1000
         y = unpack('d',data[40:48])[0]/1000
         z = unpack('d',data[48:56])[0]/1000
-        # euler angles,rad, rotation order: rx,ry,rz, using intermediate frame
+        # euler angles,rad, rotation order: rx,ry,rz, using axis of intermediate frame
         rx = unpack('d',data[56:64])[0]
         ry = unpack('d',data[64:72])[0]
         rz = unpack('d',data[72:80])[0]
