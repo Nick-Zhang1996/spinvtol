@@ -6,15 +6,15 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from scipy.optimize import curve_fit
 
-def _fitfunc(x,a,b,c,d,e):
+def _fitfunc1(x,a,b,c,d,e):
     flap,aoa = x
     return a*flap**2+b*flap+c*aoa**2+d*aoa+e
 
-def fitNplot(data,name,residual_offset=0):
+def fitNplot(func, data,name,residual_offset=0):
     xdata = (flapm.flatten(),aoam.flatten())
     ydata = data.flatten()
-    popt, pcov = curve_fit(_fitfunc, xdata,ydata)
-    print(name,popt)
+    popt, pcov = curve_fit(func, xdata,ydata)
+    print(name + '  %e*flap**2+%e*flap+%e*aoa**2+%e*aoa+%e'%tuple(popt))
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
@@ -26,14 +26,16 @@ def fitNplot(data,name,residual_offset=0):
     fit = np.zeros_like(flapm)
     for i in range(flapm.shape[0]):
         for j in range(flapm.shape[1]):
-            fit[i][j] = _fitfunc((flapm[i][j],aoam[i][j]),*popt)
+            fit[i][j] = func((flapm[i][j],aoam[i][j]),*popt)
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     #ax.plot_surface(flapm, aoam, fit, cmap='plasma')
     ax.plot_trisurf(flapm.flatten(), aoam.flatten(), fit.flatten(), linewidth=0.2,antialiased=True,cmap=plt.cm.CMRmap)
-    cset = ax.contourf(flapm, aoam, data-fit, zdir='z', offset=residual_offset, cmap='plasma')
-    ax.set_zlim(residual_offset,np.max(fit))
+    #cset = ax.contourf(flapm, aoam, data-fit, zdir='z', offset=residual_offset, cmap='plasma')
+    ax.plot_trisurf(flapm.flatten(), aoam.flatten(), data.flatten()-fit.flatten(), linewidth=0.2,antialiased=True,cmap=plt.cm.CMRmap)
+    print(name+' max err = '+str(max(data.flatten()-fit.flatten())))
+    #ax.set_zlim(residual_offset,np.max(fit))
     plt.show()
 
 # prepare data
@@ -63,6 +65,6 @@ for flapIndex in range(8):
         cd[flapIndex][aoaIndex] = data[2]
         cm[flapIndex][aoaIndex] = data[4]
 
-fitNplot(cl,'cl',-1)
-fitNplot(cd,'cd',0)
-fitNplot(cm,'cm')
+fitNplot(_fitfunc1,cl,'cl',-1)
+fitNplot(_fitfunc1,cd,'cd',0)
+fitNplot(_fitfunc1,cm,'cm')
