@@ -1,8 +1,40 @@
+# retrieve aerodynamic coefficients from xfoil polar output files
 # fit aerodynamic coefficients of a deflecting flap
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
+from scipy.optimize import curve_fit
+
+def _fitfunc(x,a,b,c,d,e):
+    flap,aoa = x
+    return a*flap**2+b*flap+c*aoa**2+d*aoa+e
+
+def fitNplot(data,name,residual_offset=0):
+    xdata = (flapm.flatten(),aoam.flatten())
+    ydata = data.flatten()
+    popt, pcov = curve_fit(_fitfunc, xdata,ydata)
+    print(name,popt)
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.plot_trisurf(flapm.flatten(), aoam.flatten(), data.flatten(), linewidth=0.2,antialiased=True,cmap=plt.cm.CMRmap)
+    ax.set_title(name)
+    plt.show()
+
+    # Plot the 3D figure of the fitted function and the residuals.
+    fit = np.zeros_like(flapm)
+    for i in range(flapm.shape[0]):
+        for j in range(flapm.shape[1]):
+            fit[i][j] = _fitfunc((flapm[i][j],aoam[i][j]),*popt)
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    #ax.plot_surface(flapm, aoam, fit, cmap='plasma')
+    ax.plot_trisurf(flapm.flatten(), aoam.flatten(), fit.flatten(), linewidth=0.2,antialiased=True,cmap=plt.cm.CMRmap)
+    cset = ax.contourf(flapm, aoam, data-fit, zdir='z', offset=residual_offset, cmap='plasma')
+    ax.set_zlim(residual_offset,np.max(fit))
+    plt.show()
 
 # prepare data
 filenames = ['up5','0','down5','down10','down15','down20','down25','down30']
@@ -31,11 +63,6 @@ for flapIndex in range(8):
         cd[flapIndex][aoaIndex] = data[2]
         cm[flapIndex][aoaIndex] = data[4]
 
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-ax.plot_surface(flapm, aoam, cl*100, edgecolor='none')
-ax.set_title('cl')
-plt.show()
-
-
-
+fitNplot(cl,'cl',-1)
+fitNplot(cd,'cd',0)
+fitNplot(cm,'cm')
