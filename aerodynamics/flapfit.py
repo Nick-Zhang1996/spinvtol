@@ -10,7 +10,7 @@ def _fitfunc1(x,a,b,c,d,e):
     flap,aoa = x
     return a*flap**2+b*flap+c*aoa**2+d*aoa+e
 
-def fitNplot(func, data,name,residual_offset=0):
+def fitNplot(func, data,name):
     xdata = (flapm.flatten(),aoam.flatten())
     ydata = data.flatten()
     popt, pcov = curve_fit(func, xdata,ydata)
@@ -65,6 +65,6 @@ for flapIndex in range(8):
         cd[flapIndex][aoaIndex] = data[2]
         cm[flapIndex][aoaIndex] = data[4]
 
-fitNplot(_fitfunc1,cl,'cl',-1)
-fitNplot(_fitfunc1,cd,'cd',0)
+fitNplot(_fitfunc1,cl,'cl')
+fitNplot(_fitfunc1,cd,'cd')
 fitNplot(_fitfunc1,cm,'cm')
