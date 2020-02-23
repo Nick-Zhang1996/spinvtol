@@ -10,6 +10,15 @@
 // flap servo output: 29
 // throttle  output(reserved, not used): 30
 
+// Communication
+// There are two types of outgoing serial message types from Teensy
+// 1. State update
+//   Begines with a #, ends with /r/n, this includes sensor update and other debugging information meant to be
+//   parsed by a special program (reader.py) on host computer. They typically have fixed length and are sent at
+//   a fixed rate
+// 2. Service response
+//   Begins with a $, ends with /r/n, they are sent on demand, for example ping response
+
 // enable using dual ADXL345 for state estimation, comment out if using boards without them
 #define DUALACC
 
@@ -23,6 +32,11 @@
 
 #define PIN_FLAP_SERVO 29
 #define PIN_THROTTLE_SERVO 30
+#define PIN_VOLTAGE A3
+// resistor values for voltage divider
+#define R_VOLTAGE_UP 20e3
+#define R_VOLTAGE_DOWN 4.7e3
+#define VOLTAGE_BUFFER_LEN 100
 
 
 // action sequence for T1_COMPA
@@ -36,9 +50,11 @@
 #define FALLING_NEUTRAL 3
 #define SERVO_MIN 4
 
+#define CHANNEL_NO 6
+
 #define MAX_FLAP_SERVO_PULSEWIDTH 930
 #define MIN_FLAP_SERVO_PULSEWIDTH 560
-#define CENTRAL_FLAP_SERVO_PULSEWIDTH 745
+#define NEUTRAL_FLAP_SERVO_PULSEWIDTH 745
 
 #define MAX_THROTTLE_SERVO_PULSEWIDTH 1939
 #define MIN_THROTTLE_SERVO_PULSEWIDTH 1098
@@ -123,9 +139,9 @@ float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
 }
 
 
-uint8_t rc_in_pinno[] = {4, 5, 6, 7, 8}; // CH0,1,2,3,4
-volatile int rc_in_val[5] = {0};
-volatile unsigned long rc_rising_ts[5] = {0};
+uint8_t rc_in_pinno[] = {4, 5, 6, 7, 8, 24}; // CH0,1,2,3,4,5(soldered on)
+volatile int rc_in_val[CHANNEL_NO] = {0};
+volatile unsigned long rc_rising_ts[CHANNEL_NO] = {0};
 bool flag_signal_loss = false;
 
 //note: measured dutycycle for futaba FHSS 13564us, 73Hz
@@ -167,6 +183,15 @@ void rc4_in_callback() {
     rc_rising_ts[4] = timestamp;
   } else {
     rc_in_val[4] = timestamp - rc_rising_ts[4];
+  }
+}
+
+void rc5_in_callback() {
+  unsigned long timestamp = micros();
+  if (digitalRead(rc_in_pinno[5]) == HIGH) {
+    rc_rising_ts[5] = timestamp;
+  } else {
+    rc_in_val[5] = timestamp - rc_rising_ts[5];
   }
 }
 
@@ -267,7 +292,7 @@ void cyclic(){
 
       case RISING_NEUTRAL:
           //Serial1.println("RISING_NEUTRAL");
-          //setFlapServoPulseWidth(CENTRAL_FLAP_SERVO_PULSEWIDTH);
+          //setFlapServoPulseWidth(NEUTRAL_FLAP_SERVO_PULSEWIDTH);
           setFlapServoPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MAX;
           // adjust control phase to sync with estimated state
@@ -286,14 +311,14 @@ void cyclic(){
           
       case SERVO_MAX:
           //Serial1.println("SERVO_MAX");
-          setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_FLAP_SERVO_PULSEWIDTH, MAX_FLAP_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,NEUTRAL_FLAP_SERVO_PULSEWIDTH, MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = FALLING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
 
       case FALLING_NEUTRAL:
           //Serial1.println("FALLING_NEUTRAL");
-          //setFlapServoPulseWidth(CENTRAL_FLAP_SERVO_PULSEWIDTH);
+          //setFlapServoPulseWidth(NEUTRAL_FLAP_SERVO_PULSEWIDTH);
           setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MIN;
           remaining_delay_us = quarter_period;
@@ -301,7 +326,7 @@ void cyclic(){
 
       case SERVO_MIN:
           //Serial1.println("SERVO_MIN");
-          setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_FLAP_SERVO_PULSEWIDTH, MIN_FLAP_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,NEUTRAL_FLAP_SERVO_PULSEWIDTH, MIN_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic  = RISING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
@@ -576,6 +601,34 @@ void synchronize(){
   digitalWrite(synchro_pinno,HIGH);
 }
 
+// response to ping 
+void ping(){
+  Serial.println(F("$ping"));
+}
+
+// update serial remote control command
+// this is the processor for host computer generated control command
+volatile bool manual_control = true;
+volatile unsigned long remote_ts = 0; // use a timestamp to monitor if up to date control msg is available
+volatile int remote_throttle = MIN_THROTTLE_SERVO_PULSEWIDTH;
+volatile int remote_flap = NEUTRAL_FLAP_SERVO_PULSEWIDTH;
+volatile int remote_buffer = MIN_THROTTLE_SERVO_PULSEWIDTH;
+void ctrl(){
+  remote_ts = millis();
+  // throttle
+  remote_buffer = atoi(sCmd.next());
+  if (remote_buffer<=MAX_THROTTLE_SERVO_PULSEWIDTH && remote_buffer>=MIN_THROTTLE_SERVO_PULSEWIDTH){
+    remote_throttle = remote_buffer;
+  }
+
+  // flap
+  remote_buffer = atoi(sCmd.next());
+  if (remote_buffer<=MAX_FLAP_SERVO_PULSEWIDTH && remote_buffer>=MIN_FLAP_SERVO_PULSEWIDTH){
+    remote_flap = remote_buffer;
+  }
+
+}
+
 // ---------------- EKF ----------------
 // x = [theta(azimuth), omega] unit: rad, rad/s
 
@@ -777,6 +830,7 @@ void setup() {
   for (uint8_t i = 0; i < sizeof(rc_in_pinno) / sizeof(uint8_t);  i++) {
     pinMode(rc_in_pinno[i], INPUT);
   }
+  pinMode(PIN_VOLTAGE,INPUT);
 
   attachInterrupt( digitalPinToInterrupt(xbee_rssi_pin), xbee_rssi_callback,CHANGE);
   attachInterrupt( digitalPinToInterrupt(rc_in_pinno[0]), rc0_in_callback, CHANGE);
@@ -784,6 +838,7 @@ void setup() {
   attachInterrupt( digitalPinToInterrupt(rc_in_pinno[2]), rc2_in_callback, CHANGE);
   attachInterrupt( digitalPinToInterrupt(rc_in_pinno[3]), rc3_in_callback, CHANGE);
   attachInterrupt( digitalPinToInterrupt(rc_in_pinno[4]), rc4_in_callback, CHANGE);
+  attachInterrupt( digitalPinToInterrupt(rc_in_pinno[5]), rc5_in_callback, CHANGE);
 
   // ---------------- MPU9250 init ---------------
   Wire.begin();
@@ -976,6 +1031,9 @@ void setup() {
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
+  sCmd.addCommand("ping",ping);
+  sCmd.addCommand("ctrl",ctrl);
+
 
   analogWriteFrequency(PIN_FLAP_SERVO, 300);
   pending_action_cyclic = RISING_NEUTRAL;
@@ -1007,16 +1065,66 @@ void loop() {
   main_loop_hz = 1000.0/(millis()-main_loop_ts);
   main_loop_ts = millis();
 
+  // process commandd
+  sCmd.readSerial();
+
+  //block -- manual/telemetry control switch
+  // TODO, test the actual switching PWM
+  if (!flag_signal_loss){
+    if (rc_in_val[5]<1500 and !manual_control){ // switch to manual mode
+      manual_control = true;
+      pending_action_cyclic = RISING_NEUTRAL;
+      Serial1.println(F("Manual Override"));
+    } else if (rc_in_val[5]>1500 and manual_control){ // switch to autonomous mode
+      // ensure a recent remote control command is present
+      // this avoids accidently switching control to remote when remote is not ready
+      if ((millis()-remote_ts)<50){
+        manual_control = false;
+        pending_action_cyclic = NONE;
+        Serial1.println(F("Autonomous Control"));
+      } else {
+        Serial1.println(F("Unable to switch to Autonomous Mode, remote not updating"));
+      }
+    }
+  }
+  //block --
+
+  //block -- autonomous control
+  static int remote_update_freq = 50;
+  static unsigned long remote_update_ts = millis();
+  if (!manual_control and !flag_signal_loss and ((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
+    remote_update_ts = millis();
+    setThrottleServoPulseWidth(remote_throttle);
+    setFlapServoPulseWidth(remote_flap);
+  }
+  //block --
+
+
+
+  //block -- voltage update
+  static int voltage_hist[VOLTAGE_BUFFER_LEN] = {0};
+  static int p_voltage_hist = 0;
+  static float voltage_running_avg = 0.0;
+  static float voltage_sum = 0.0;
+  voltage_hist[p_voltage_hist%VOLTAGE_BUFFER_LEN] = analogRead(PIN_VOLTAGE);
+  p_voltage_hist++;
+  voltage_sum = 0.0;
+  for (int i=0;i<VOLTAGE_BUFFER_LEN;i++){
+    voltage_sum += voltage_hist[i];
+  }
+  voltage_running_avg = (float)voltage_sum/(float)VOLTAGE_BUFFER_LEN/1023.0/R_VOLTAGE_DOWN*(R_VOLTAGE_DOWN+R_VOLTAGE_UP)*3.3;
+  //block -- 
+
+
   //block -- throttle pwm update
   static int throttle_update_freq = 50;
   static unsigned long throttle_update_ts = millis();
-  if ( (millis() - throttle_update_ts) > (unsigned long) (1000 / float(throttle_update_freq)) ) {
+  if ( manual_control && ((millis() - throttle_update_ts) > (unsigned long) (1000 / float(throttle_update_freq))) ) {
     throttle_update_ts = millis();
     setThrottleServoPulseWidth(rc_in_val[2]);
   }
   //block -- 
 
-  sCmd.readSerial();
   //block -- serial update
   static int serial_update_freq = 10;
   static unsigned long serial_update_ts = millis();
@@ -1034,7 +1142,9 @@ void loop() {
       Serial1.print(F(" | ch4 : "));
       Serial1.print(rc_in_val[4]);
       Serial1.print(F(" -> "));
-      Serial1.println(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+      Serial1.print(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+      Serial1.print(F(" | ch5 : "));
+      Serial1.println(rc_in_val[5]);
     }
   }
   // block ----
@@ -1150,15 +1260,22 @@ void loop() {
   if ( (millis() - loss_of_signal_ts) > (unsigned long) (1000 / float(loss_of_signal_freq)) ) {
     loss_of_signal_ts = millis();
 
-    // detect loss of signal (works with FHSS on a channel without fail safe enabled
+    // detect loss of signal (works with FHSS on a channel with fail safe DISABLED)
     unsigned long us_since_last_rc_in = micros() - rc_rising_ts[0];
     if (us_since_last_rc_in > 500000) {
-      if (sig_verbose && human_readable_output){
-        Serial1.println(F("Signal loss"));
+      if (!flag_signal_loss){ // enter failsafe, disable motor and set flap to neutral
+        Serial1.println(F("Signal loss - Failsafe enabled"));
+        flag_signal_loss = true;
+        setThrottleServoPulseWidth(MIN_THROTTLE_SERVO_PULSEWIDTH);
+        setFlapServoPulseWidth(NEUTRAL_FLAP_SERVO_PULSEWIDTH);
       }
-      flag_signal_loss = true;
-    } else {
+    } else if (flag_signal_loss){ // recover from failsafe 
       flag_signal_loss = false;
+      // Autonomous control will automatically resume by autonomous block
+      // Manual throttle control will resume automatically by throttle block
+      // Manual flap control need to be re-enabled here
+      pending_action_cyclic = RISING_NEUTRAL;
+      Serial1.println(F("RC signal recovered"))
     }
   }
   // block ---
@@ -1167,7 +1284,7 @@ void loop() {
   kf_predict();
 
   // acc update
-  // WARNING FIXME two acc not aligned, implement same algo used in reader.py
+  // WARNING TODO two acc not aligned, implement same algo used in reader.py
   //float delta_acc = acc_norm(&event_out)-acc_norm(&event_in);
   //if (x[1][0]>2*pi){
     //kf_update_acc(delta_acc);
@@ -1316,14 +1433,20 @@ void loop() {
 #endif
 
     Serial1.print(",");
+    Serial1.print(voltage_running_avg,2); // voltage
+
+    Serial1.print(",");
+    // phase
     // unit: degree
     // may not need
     kf_predict();
+    // wrap around 360deg, like a mod operation
     long offset = (long)(x[0][0]/pi*180)/360*360;
-    Serial1.print(x[0][0]/pi*180-offset);
+    Serial1.print(x[0][0]/pi*180-offset); // phase
     Serial1.print(",");
+    // angular velocity
     //unit: rev/s
-    Serial1.println(x[1][0]/2.0/pi);
+    Serial1.println(x[1][0]/2.0/pi); // omega
 
     
 //    Serial1.print(" ref: ");
