@@ -21,7 +21,8 @@
 // blue
 #define PIN_LED4 12
 
-#define PIN_SERVO 29
+#define PIN_FLAP_SERVO 29
+#define PIN_THROTTLE_SERVO 30
 
 
 // action sequence for T1_COMPA
@@ -35,19 +36,22 @@
 #define FALLING_NEUTRAL 3
 #define SERVO_MIN 4
 
-#define MAX_SERVO_PULSEWIDTH 930
-#define MIN_SERVO_PULSEWIDTH 560
-#define CENTRAL_SERVO_PULSEWIDTH 745
+#define MAX_FLAP_SERVO_PULSEWIDTH 930
+#define MIN_FLAP_SERVO_PULSEWIDTH 560
+#define CENTRAL_FLAP_SERVO_PULSEWIDTH 745
 
-// roll-ch1->ch0, pitch ch2->ch1, rudder ch4->ch2
-#define PITCH_FULL_PULL 1930.0
-#define PITCH_FULL_PUSH 1108.0
-#define ROLL_FULL_LEFT 1108.0
-#define ROLL_FULL_RIGHT 1930.0
-#define RUDDER_FULL_LEFT 1110.0
-#define RUDDER_FULL_RIGHT 1930.0
-#define VR_MIN 932.0
-#define VR_MAX 2032.0
+#define MAX_THROTTLE_SERVO_PULSEWIDTH 1939
+#define MIN_THROTTLE_SERVO_PULSEWIDTH 1098
+
+// roll-ch1(pcb)->ch0(array index), pitch ch2->ch1, throttle ch3->ch2, rudder ch4->ch3, aux ch5->ch4
+#define PITCH_FULL_PULL 1939.0
+#define PITCH_FULL_PUSH 1098.0
+#define ROLL_FULL_LEFT 1096.0
+#define ROLL_FULL_RIGHT 11938.0
+#define RUDDER_FULL_LEFT 1100.0
+#define RUDDER_FULL_RIGHT 1940.0
+#define VR_MIN 1099.0
+#define VR_MAX 1939.0
 
 //  millis() use Timer 0
 #include <Wire.h>
@@ -199,19 +203,36 @@ void blinker() {
     }
 } 
 
-volatile uint32_t oldres;
-volatile int duty;
-void setPulseWidth(float us)
+volatile uint32_t oldres_flap;
+volatile int duty_flap;
+void setFlapServoPulseWidth(float us)
 {
-  if (us<MIN_SERVO_PULSEWIDTH) { us = MIN_SERVO_PULSEWIDTH; }
-  if (us>MAX_SERVO_PULSEWIDTH) { us = MAX_SERVO_PULSEWIDTH; }
-	duty = us/(1e6/300.0)*65535;
+  if (us<MIN_FLAP_SERVO_PULSEWIDTH) { us = MIN_FLAP_SERVO_PULSEWIDTH; }
+  if (us>MAX_FLAP_SERVO_PULSEWIDTH) { us = MAX_FLAP_SERVO_PULSEWIDTH; }
+	duty_flap = us/(1e6/300.0)*65535;
 #if TEENSYDUINO >= 137
 	noInterrupts();
-	oldres = analogWriteResolution(16);
-	analogWrite(PIN_SERVO, duty);
+	oldres_flap = analogWriteResolution(16);
+	analogWrite(PIN_FLAP_SERVO, duty_flap);
   // restore resolution
-	analogWriteResolution(oldres);
+	analogWriteResolution(oldres_flap);
+	interrupts();
+#endif
+}
+
+volatile uint32_t oldres_throttle;
+volatile int duty_throttle;
+void setThrottleServoPulseWidth(float us)
+{
+  if (us<MIN_THROTTLE_SERVO_PULSEWIDTH) { us = MIN_THROTTLE_SERVO_PULSEWIDTH; }
+  if (us>MAX_THROTTLE_SERVO_PULSEWIDTH) { us = MAX_THROTTLE_SERVO_PULSEWIDTH; }
+	duty_throttle = us/(1e6/300.0)*65535;
+#if TEENSYDUINO >= 137
+	noInterrupts();
+	oldres_throttle = analogWriteResolution(16);
+	analogWrite(PIN_THROTTLE_SERVO, duty_throttle);
+  // restore resolution
+	analogWriteResolution(oldres_throttle);
 	interrupts();
 #endif
 }
@@ -246,8 +267,8 @@ void cyclic(){
 
       case RISING_NEUTRAL:
           //Serial1.println("RISING_NEUTRAL");
-          //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
-          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+          //setFlapServoPulseWidth(CENTRAL_FLAP_SERVO_PULSEWIDTH);
+          setFlapServoPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MAX;
           // adjust control phase to sync with estimated state
           // 5e5 = 2(for 2pi) * 1e6 (sec -> us) / 4 (quarter period)
@@ -265,22 +286,22 @@ void cyclic(){
           
       case SERVO_MAX:
           //Serial1.println("SERVO_MAX");
-          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MAX_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_FLAP_SERVO_PULSEWIDTH, MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = FALLING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
 
       case FALLING_NEUTRAL:
           //Serial1.println("FALLING_NEUTRAL");
-          //setPulseWidth(CENTRAL_SERVO_PULSEWIDTH);
-          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+          //setFlapServoPulseWidth(CENTRAL_FLAP_SERVO_PULSEWIDTH);
+          setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MIN;
           remaining_delay_us = quarter_period;
           break;
 
       case SERVO_MIN:
           //Serial1.println("SERVO_MIN");
-          setPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_SERVO_PULSEWIDTH, MIN_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,CENTRAL_FLAP_SERVO_PULSEWIDTH, MIN_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic  = RISING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
@@ -288,7 +309,7 @@ void cyclic(){
       case NONE:
       default:
           //Serial1.println("fallthrough");
-          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           return;
           break;
   }
@@ -510,6 +531,14 @@ void display_rssi() {
   int rval = onoff(sCmd.next());
   if (rval != -1) {
     rssi_verbose = (bool)rval;
+  }
+}
+
+bool loop_freq_verbose = true;
+void display_loop_freq() {
+  int rval = onoff(sCmd.next());
+  if (rval != -1) {
+    loop_freq_verbose = (bool)rval;
   }
 }
 
@@ -920,12 +949,12 @@ void setup() {
   pinMode(PIN_LED2, OUTPUT);
   pinMode(PIN_LED3, OUTPUT);
   pinMode(PIN_LED4, OUTPUT);
-  pinMode(PIN_SERVO,OUTPUT);
+  pinMode(PIN_FLAP_SERVO,OUTPUT);
   digitalWrite(PIN_LED1,HIGH);
   digitalWrite(PIN_LED2,HIGH);
   digitalWrite(PIN_LED3,HIGH);
   digitalWrite(PIN_LED4,HIGH);
-  digitalWrite(PIN_SERVO,LOW);
+  digitalWrite(PIN_FLAP_SERVO,LOW);
 
   pinMode(synchro_pinno,OUTPUT);
   digitalWrite(synchro_pinno,HIGH);
@@ -942,12 +971,13 @@ void setup() {
   sCmd.addCommand("rc", display_rc);
   sCmd.addCommand("sig", display_sig);
   sCmd.addCommand("rssi", display_rssi);
+  sCmd.addCommand("loophz", display_loop_freq);
   sCmd.addCommand("all", display_all);
   sCmd.addCommand("sync",synchronize);
   sCmd.addCommand("human",human);
   sCmd.addCommand("machine",machine);
 
-  analogWriteFrequency(PIN_SERVO, 300);
+  analogWriteFrequency(PIN_FLAP_SERVO, 300);
   pending_action_cyclic = RISING_NEUTRAL;
   TeensyDelay::begin();
   TeensyDelay::addDelayChannel(cyclic, 0);
@@ -958,7 +988,9 @@ void setup() {
 float mag_hist[4];
 uint8_t mag_index;
 unsigned long led_off_ts;
-unsigned long loop_ts;
+unsigned long serial_loop_ts;
+unsigned long main_loop_ts;
+float main_loop_hz = 0.0;
 bool flag_reset_point = false;
 bool flag_led_on = false;
 bool flag_calibrated = false;
@@ -972,6 +1004,18 @@ float rudder_normalized;
 float ref_heading;
 unsigned long last_mag_update_ts;
 void loop() {
+  main_loop_hz = 1000.0/(millis()-main_loop_ts);
+  main_loop_ts = millis();
+
+  //block -- throttle pwm update
+  static int throttle_update_freq = 50;
+  static unsigned long throttle_update_ts = millis();
+  if ( (millis() - throttle_update_ts) > (unsigned long) (1000 / float(throttle_update_freq)) ) {
+    throttle_update_ts = millis();
+    setThrottleServoPulseWidth(rc_in_val[2]);
+  }
+  //block -- 
+
   sCmd.readSerial();
   //block -- serial update
   static int serial_update_freq = 10;
@@ -987,8 +1031,22 @@ void loop() {
       Serial1.print(rc_in_val[2]);
       Serial1.print(F(" | ch3 : "));
       Serial1.print(rc_in_val[3]);
+      Serial1.print(F(" | ch4 : "));
+      Serial1.print(rc_in_val[4]);
       Serial1.print(F(" -> "));
-      Serial1.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+      Serial1.println(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+    }
+  }
+  // block ----
+
+  //block -- loop freq update
+  static int loop_freq_update_freq = 10;
+  static unsigned long loop_freq_update_ts = millis();
+  if ( (millis() - loop_freq_update_ts) > (unsigned long) (1000 / float(loop_freq_update_freq)) ) {
+    loop_freq_update_ts = millis();
+    if (loop_freq_verbose && human_readable_output) {
+      Serial1.print(F("main loop(Hz) = "));
+      Serial1.println(main_loop_hz);
     }
   }
   // block ----
@@ -1134,13 +1192,13 @@ void loop() {
         Serial1.println(F("Warning: omega too high"));
         flag_servo_protect = true;
         pending_action_cyclic = NONE;
-        setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+        setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
         digitalWrite(PIN_LED4,HIGH);
       } else if (x[1][0]<2*pi) {
         Serial1.println(F("Omega too low, servo disabled"));
         flag_servo_protect = true;
         pending_action_cyclic = NONE;
-        setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+        setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
         digitalWrite(PIN_LED4,HIGH);
       } else {
         // suitable omega for control
@@ -1273,14 +1331,14 @@ void loop() {
 //    Serial1.print("  ctrl ");
 //    Serial1.println((ctrl_phase-ref_heading)/pi*180);
 
-    //Serial1.println(millis()-loop_ts);
-    loop_ts = millis();
+    //Serial1.println(millis()-serial_loop_ts);
+    serial_loop_ts = millis();
   }
 
   
     flag_reset_point = false;
     // limit transmission rate to 50Hz
-    while (millis()-loop_ts < 20){
+    while (millis()-serial_loop_ts < 20){
       delayMicroseconds(100);
     }
       if (millis()-last_mag_update_ts>2000){
@@ -1296,13 +1354,13 @@ void loop() {
           flag_running = false;
           flag_servo_protect = true;
           pending_action_cyclic = NONE;
-          setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           digitalWrite(PIN_LED4,HIGH);
         }
       }
     
     if (!flag_running){
-       //Serial1.println(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
-       setPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_SERVO_PULSEWIDTH,MAX_SERVO_PULSEWIDTH));
+       //Serial1.println(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+       setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
     }
 }
