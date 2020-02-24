@@ -62,10 +62,10 @@ if __name__ == '__main__':
     tik = time()
     last_frame = None
     loss_count = 0
-    while False:
+    while True:
         print(vi.getViconUpdate())
     # test freq
-    if True:
+    if False:
         for i in range(3):
             print("Freq = "+str(vi.testFreq())+"Hz")
 
