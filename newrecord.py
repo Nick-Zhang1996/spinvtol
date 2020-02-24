@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 # from bottom, how far up do we display rolling data
 rolling_offset = 10
 
-def main(screen, testStand, avionics):
+def main(screen, avionics):
     curses.curs_set(0)                      # Set cursor visibility where 0 = invisible,
     screen.nodelay(True)                    # Set getch() to be non-blocking - important!
     curses.noecho()
@@ -242,7 +242,8 @@ if __name__ == '__main__':
     host_system = platform.system()
     if host_system == "Linux":
         testStandCommPort = '/dev/ttyUSB0'
-        avionicsCommPort = '/dev/ttyUSB1'
+        #avionicsCommPort = '/dev/ttyUSB1'
+        avionicsCommPort = '/dev/ttyACM0'
     elif host_system == "Darwin":
         testStandCommPort = '/dev/tty.wchusbserial1420'
         avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
@@ -265,8 +266,8 @@ if __name__ == '__main__':
         data00 = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
         #data00 = np.linspace(0,0,windowWidth)
         data01 = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
-        data10 = np.vstack([np.linspace(0,0,windowWidth/2),np.linspace(0,0,windowWidth/2)]).T          # create array that will contain the relevant time series     
-        data11 = np.vstack([np.linspace(0,0,windowWidth/2),np.linspace(0,0,windowWidth/2)]).T          # create array that will contain the relevant time series     
+        data10 = np.vstack([np.linspace(0,0,int(windowWidth/2)),np.linspace(0,0,int(windowWidth/2))]).T          # create array that will contain the relevant time series     
+        data11 = np.vstack([np.linspace(0,0,int(windowWidth/2)),np.linspace(0,0,int(windowWidth/2))]).T          # create array that will contain the relevant time series     
         ptr = -windowWidth                      # set first x position
 
         # prepare post experiment data
@@ -277,7 +278,7 @@ if __name__ == '__main__':
         with serial.Serial(avionicsCommPort,115200, timeout=0.001) as avionics:
             # TODO check if serial is successfully opened
 
-            curses.wrapper(main,testStand,avionics)        
+            curses.wrapper(main,avionics)   
     finally:
         # visualize relation between omega and theta(when magnetic reading is max)
         #mag_offset = np.array(mag_offset)
