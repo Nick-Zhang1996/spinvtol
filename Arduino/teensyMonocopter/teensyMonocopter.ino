@@ -34,7 +34,7 @@
 #define PIN_THROTTLE_SERVO 30
 #define PIN_VOLTAGE A3
 // resistor values for voltage divider
-#define R_VOLTAGE_UP 20e3
+#define R_VOLTAGE_UP 22e3
 #define R_VOLTAGE_DOWN 4.7e3
 #define VOLTAGE_BUFFER_LEN 100
 
@@ -1275,7 +1275,7 @@ void loop() {
       // Manual throttle control will resume automatically by throttle block
       // Manual flap control need to be re-enabled here
       pending_action_cyclic = RISING_NEUTRAL;
-      Serial1.println(F("RC signal recovered"))
+      Serial1.println(F("RC signal recovered"));
     }
   }
   // block ---
