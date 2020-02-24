@@ -9,15 +9,37 @@ import pyqtgraph as pg
 import warnings
 from math import pi,sin,cos
 import matplotlib.pyplot as plt
+from time import time,sleep
 
 # from bottom, how far up do we display rolling data
 rolling_offset = 10
+enablePlot = False
+screenHandle = None
+
+def displayText(text):
+    global ymax,xmax,rolling_offset, screenHandle
+    screen = screenHandle
+    #display a human readable text slip
+    screen.scroll()
+    screen.addstr(ymax-rolling_offset,0,text)
+    return
+def displayLineno(n,text):
+    global screenHandle
+    screen = screenHandle
+    # display text at line n (counting from bottom up, bottom line is 1)
+    assert n>0
+    screen.move(ymax-n,0)
+    screen.clrtoeol()
+    screen.addstr(ymax-n,0,text)
 
 def main(screen, avionics):
+    global screenHandle
+    screenHandle = screen
     curses.curs_set(0)                      # Set cursor visibility where 0 = invisible,
     screen.nodelay(True)                    # Set getch() to be non-blocking - important!
     curses.noecho()
     curses.use_default_colors()             # Lets your terminal client set the fonts and colors
+    global ymax,xmax
     ymax, xmax = screen.getmaxyx()          # Get the screen dimensions
     screen.setscrreg(0,ymax-rolling_offset)
     screen.scrollok(True)
@@ -34,8 +56,8 @@ def main(screen, avionics):
     # main loop, print,parse arduino output and send command
     start_ts = datetime.datetime.now()
     flag_calibrated = False
-    flag_new_data_testStand = False
-    flag_new_data_avionics = True
+    flap_new_plot_data = True
+    flag_ping_in_progress = False
 
     calibration_data = []
     R_12 = None
@@ -90,26 +112,31 @@ def main(screen, avionics):
                         kf_azimuth = data[11] 
                         # omega (rev/s) from avionics
                         kf_omega = data[12] 
-                        try:
-                            if (kf_azimuth and omega is not None and azimuth is not None and omega>1):
-                                mag_offset.append([omega, azimuth])
-                                screen.move(ymax-6,0)
-                                screen.clrtoeol()
-                                screen.addstr(ymax-6,0,"Data count: "+str(len(mag_offset)))
-                        except NameError: # in case omega is not ready
-                            pass
-                        flag_new_data_testStand = True
                         #screen.addstr(ymax-9,0,"acc1 = "+str(acc1))
                         #screen.addstr(ymax-9,int(xmax/2),"acc2 = "+str(acc2))
                 except ValueError:
                     pass
+            elif (chr(line[0])=='$'):
+                # inquiry response, e.g. ping response
+                try:
+                    response = line.decode()[1:-2]
+                except UnicodeDecodeError:
+                    pass
+
+                displayText("[avionics response]:"+response)
+                if (response == "ping"):
+                    tac = time()
+                    flag_ping_in_progress = False
+                    displayText("[avionics]: ping success, dt = " + str(tac-tic)+"s")
+                    tic = 0.0
+                    
             else:
                 #human readable
                 screen.scroll()
                 # may throw UnicodeDecodeError, not big deal
                 try:
                     text = line.decode()[:-2]
-                    screen.addstr(ymax-rolling_offset,0,"[avionics]: "+text)
+                    screen.addstr(ymax-rolling_offset,0,"[monocopter]: "+text)
                 except UnicodeDecodeError:
                     pass
             screen.refresh()
@@ -134,42 +161,19 @@ def main(screen, avionics):
             elif command[:-1] == 'clear':
                 screen.clear()
             elif command[:-1] == 'flush':
-                testStand.reset_input_buffer()
                 avionics.reset_input_buffer()
-            elif command[:-1] == 'sync':
-                screen.scroll()
-                screen.addstr(ymax-rolling_offset,0,"[reader]: "+"Automatic Sync sequence")
-
-                testStand.write('sync\r\n'.encode())
-                screen.scroll()
-                screen.addstr(ymax-rolling_offset,0,"Command Sent[test stand]: sync")
-                curses.napms(100)
-
-                avionics.write('sync\r\n'.encode())
-                epoch = datetime.datetime.now()
-                screen.scroll()
-                screen.addstr(ymax-rolling_offset,0,"Command Sent[avionics]: sync")
-                screen.refresh()
-
-            elif command[:-1] == 'calibrate':
-                flag_calibrated = False
-                calibration_data = []
-                screen.addstr(ymax-2,0,"calibrationg start")
-                screen.refresh()
-
+            elif command[:-1] == 'ping':
+                flag_ping_in_progress = True
+                tic = time()
+                avionics.write("ping\r\n".encode())
+                displayLineno(2,"Ping...")
             else:
                 # command start with single letter 't': intended for teststand
+                # command start with single letter 'a': intended for avionics
                 # e.g.  "t sync" -> send "sync" to teststand (with additional trailing \r\n)
                 # similarly 'a' for avionics
                 # it's ok to send the trailing \n, default behavior or arduino IDE's serial monitor
-                if command[0] == 't':
-                    # test stand
-                    # TODO more elegantly remove t and trailing space
-                    testStand.write(command[2:].encode())
-                    screen.move(ymax-2,0)
-                    screen.clrtoeol()
-                    screen.addstr(ymax-2,0,"Command Sent[test stand]: "+command[2:])
-                elif command[0] == 'a':
+                if command[0] == 'a':
                     # avionics
                     avionics.write(command[2:].encode())
                     screen.move(ymax-2,0)
@@ -190,7 +194,7 @@ def main(screen, avionics):
 
         # display new data
 
-        if (flag_new_data_avionics):
+        if (enablePlot and flap_new_plot_data):
             if (flag_calibrated):
                 # update plot (avionics related)
 
@@ -231,7 +235,7 @@ def main(screen, avionics):
                 curve10.setData(data10)                     # set the curve with this data
                 #curve11.setData(data11)                     # set the curve with this data
                 QtGui.QApplication.processEvents()    # you MUST process the plot now
-            flag_new_data_avionics = False
+            flap_new_plot_data = False
 
 
 
@@ -241,40 +245,39 @@ if __name__ == '__main__':
 
     host_system = platform.system()
     if host_system == "Linux":
-        testStandCommPort = '/dev/ttyUSB0'
-        #avionicsCommPort = '/dev/ttyUSB1'
-        avionicsCommPort = '/dev/ttyACM0'
+        avionicsCommPort = '/dev/ttyUSB0'
+        #avionicsCommPort = '/dev/ttyACM0'
     elif host_system == "Darwin":
         testStandCommPort = '/dev/tty.wchusbserial1420'
         avionicsCommPort = '/dev/tty.SLAB_USBtoUART'
 
     try:
-        app = QtGui.QApplication([]) 
+        if (enablePlot):
+            app = QtGui.QApplication([]) 
 
-        win = pg.GraphicsWindow(title="Avionics Feed") # create a window
-        plot00 = win.addPlot(title="Phase",row=0,col=0,labels={'left':"Phase(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        #plot01 = win.addPlot(title="mag",row=0,col=1,labels={'left':"ref",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        plot10 = win.addPlot(title="Omega",row=1,col=0,labels={'left':"rev/s",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        #plot11 = win.addPlot(title="omega difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
-        curve00 = plot00.plot()                        # create an empty "plot" (a curve to plot)
-        #curve01 = plot01.plot()                        # create an empty "plot" (a curve to plot)
-        curve10 = plot10.plot()                        # create an empty "plot" (a curve to plot)
-        #curve11 = plot11.plot()                        # create an empty "plot" (a curve to plot)
-        #plot11.setYRange(0,180)
+            win = pg.GraphicsWindow(title="Avionics Feed") # create a window
+            plot00 = win.addPlot(title="Phase",row=0,col=0,labels={'left':"Phase(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+            #plot01 = win.addPlot(title="mag",row=0,col=1,labels={'left':"ref",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+            plot10 = win.addPlot(title="Omega",row=1,col=0,labels={'left':"rev/s",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+            #plot11 = win.addPlot(title="omega difference",row=1,col=1,labels={'left':"d_theta(deg)",'bottom':"Time(s)"})  # creates empty space for the plot in the window
+            curve00 = plot00.plot()                        # create an empty "plot" (a curve to plot)
+            #curve01 = plot01.plot()                        # create an empty "plot" (a curve to plot)
+            curve10 = plot10.plot()                        # create an empty "plot" (a curve to plot)
+            #curve11 = plot11.plot()                        # create an empty "plot" (a curve to plot)
+            #plot11.setYRange(0,180)
 
-        windowWidth = 200                       # width of the window displaying the curve
-        data00 = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
-        #data00 = np.linspace(0,0,windowWidth)
-        data01 = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
-        data10 = np.vstack([np.linspace(0,0,int(windowWidth/2)),np.linspace(0,0,int(windowWidth/2))]).T          # create array that will contain the relevant time series     
-        data11 = np.vstack([np.linspace(0,0,int(windowWidth/2)),np.linspace(0,0,int(windowWidth/2))]).T          # create array that will contain the relevant time series     
-        ptr = -windowWidth                      # set first x position
+            windowWidth = 200                       # width of the window displaying the curve
+            data00 = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+            #data00 = np.linspace(0,0,windowWidth)
+            data01 = np.vstack([np.linspace(0,0,windowWidth),np.linspace(0,0,windowWidth)]).T          # create array that will contain the relevant time series     
+            data10 = np.vstack([np.linspace(0,0,int(windowWidth/2)),np.linspace(0,0,int(windowWidth/2))]).T          # create array that will contain the relevant time series     
+            data11 = np.vstack([np.linspace(0,0,int(windowWidth/2)),np.linspace(0,0,int(windowWidth/2))]).T          # create array that will contain the relevant time series     
+            ptr = -windowWidth                      # set first x position
 
-        # prepare post experiment data
-        mag_offset = []
+            # prepare post experiment data
+            mag_offset = []
 
-        # starts main update loop
-
+        # start main update loop
         with serial.Serial(avionicsCommPort,115200, timeout=0.001) as avionics:
             # TODO check if serial is successfully opened
 
@@ -285,6 +288,7 @@ if __name__ == '__main__':
         #plt.scatter(mag_offset[:,0],mag_offset[:,1])
         #plt.show()
 
-        print("Please close the plot window")
-        pg.QtGui.QApplication.exec_()
+        if (enablePlot):
+            print("Please close the plot window")
+            pg.QtGui.QApplication.exec_()
 
