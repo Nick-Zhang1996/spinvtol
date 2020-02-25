@@ -63,7 +63,7 @@
 #define PITCH_FULL_PULL 1939.0
 #define PITCH_FULL_PUSH 1098.0
 #define ROLL_FULL_LEFT 1096.0
-#define ROLL_FULL_RIGHT 11938.0
+#define ROLL_FULL_RIGHT 1938.0
 #define RUDDER_FULL_LEFT 1100.0
 #define RUDDER_FULL_RIGHT 1940.0
 #define VR_MIN 1099.0
@@ -293,7 +293,7 @@ void cyclic(){
       case RISING_NEUTRAL:
           //Serial1.println("RISING_NEUTRAL");
           //setFlapServoPulseWidth(NEUTRAL_FLAP_SERVO_PULSEWIDTH);
-          setFlapServoPulseWidth(fmap(float(rc_in_val[3]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+          setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MAX;
           // adjust control phase to sync with estimated state
           // 5e5 = 2(for 2pi) * 1e6 (sec -> us) / 4 (quarter period)
@@ -319,7 +319,7 @@ void cyclic(){
       case FALLING_NEUTRAL:
           //Serial1.println("FALLING_NEUTRAL");
           //setFlapServoPulseWidth(NEUTRAL_FLAP_SERVO_PULSEWIDTH);
-          setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+          4etFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
           pending_action_cyclic = SERVO_MIN;
           remaining_delay_us = quarter_period;
           break;
@@ -603,7 +603,7 @@ void synchronize(){
 
 // response to ping 
 void ping(){
-  Serial.println(F("$ping"));
+  Serial1.println(F("$ping"));
 }
 
 // update serial remote control command
@@ -628,6 +628,14 @@ void ctrl(){
   }
 
 }
+
+// unrecognized comand response
+void badcommand(const char *command){
+    Serial1.print(F("Bad Command:"));
+    Serial1.println(command);
+    return;
+}
+       
 
 // ---------------- EKF ----------------
 // x = [theta(azimuth), omega] unit: rad, rad/s
@@ -1033,6 +1041,7 @@ void setup() {
   sCmd.addCommand("machine",machine);
   sCmd.addCommand("ping",ping);
   sCmd.addCommand("ctrl",ctrl);
+  sCmd.setDefaultHandler(badcommand);
 
 
   analogWriteFrequency(PIN_FLAP_SERVO, 300);
@@ -1046,7 +1055,6 @@ void setup() {
 float mag_hist[4];
 uint8_t mag_index;
 unsigned long led_off_ts;
-unsigned long serial_loop_ts;
 unsigned long main_loop_ts;
 float main_loop_hz = 0.0;
 bool flag_reset_point = false;
@@ -1092,7 +1100,7 @@ void loop() {
   //block -- autonomous control
   static int remote_update_freq = 50;
   static unsigned long remote_update_ts = millis();
-  if (!manual_control and !flag_signal_loss and ((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
+  if (!manual_control and !flag_signal_loss and (millis()-remote_ts<500) and((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
     remote_update_ts = millis();
     setThrottleServoPulseWidth(remote_throttle);
     setFlapServoPulseWidth(remote_flap);
@@ -1388,15 +1396,19 @@ void loop() {
   ctrl_magnitude = sqrt(roll_normalized*roll_normalized+pitch_normalized*pitch_normalized)/1.41421;
   ctrl_magnitude = ctrl_magnitude>1.0?1.0:ctrl_magnitude;
 
-  // machine readable output
-  if (!human_readable_output){
+  // block -- machine readable output
+  static unsigned long seq_no = 0;
+  static int serial_loop_freq = 1000;
+  static unsigned long serial_loop_ts = millis();
+  if ( (millis() - serial_loop_ts) > (unsigned long) (1000 / float(serial_loop_freq)) and !human_readable_output) {
+    serial_loop_ts = millis();
     //mag_x,y,z,(inner)acc1_x,y,z,(outer)acc2_x,y,z,
+
     // signify this is a line intended for machine parsing
-
-
     Serial1.print('#');
 
-    Serial1.print(millis()-epoch);
+    //Serial1.print(millis()-epoch);
+    Serial1.print(seq_no++);
     Serial1.print(",");
     Serial1.print(myIMU.mx,2);
     Serial1.print(",");
@@ -1434,19 +1446,20 @@ void loop() {
 
     Serial1.print(",");
     Serial1.print(voltage_running_avg,2); // voltage
+    Serial1.println();
 
-    Serial1.print(",");
+    //Serial1.print(",");
     // phase
     // unit: degree
     // may not need
-    kf_predict();
+    //kf_predict();
     // wrap around 360deg, like a mod operation
-    long offset = (long)(x[0][0]/pi*180)/360*360;
-    Serial1.print(x[0][0]/pi*180-offset); // phase
-    Serial1.print(",");
+    //long offset = (long)(x[0][0]/pi*180)/360*360;
+    //Serial1.print(x[0][0]/pi*180-offset); // phase
+    //Serial1.print(",");
     // angular velocity
     //unit: rev/s
-    Serial1.println(x[1][0]/2.0/pi); // omega
+    //Serial1.println(x[1][0]/2.0/pi); // omega
 
     
 //    Serial1.print(" ref: ");
@@ -1455,15 +1468,16 @@ void loop() {
 //    Serial1.println((ctrl_phase-ref_heading)/pi*180);
 
     //Serial1.println(millis()-serial_loop_ts);
-    serial_loop_ts = millis();
   }
+
+  // block -- 
 
   
     flag_reset_point = false;
     // limit transmission rate to 50Hz
-    while (millis()-serial_loop_ts < 20){
-      delayMicroseconds(100);
-    }
+    //while (millis()-serial_loop_ts < 20){
+    //  delayMicroseconds(100);
+    //}
       if (millis()-last_mag_update_ts>2000){
         x[1][0] = 0;
         x[0][0] = 0;
