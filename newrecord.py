@@ -64,20 +64,32 @@ def main(screen, avionics):
     scale_12 = None
 
     epoch = datetime.datetime.now()
+    debugdata = []
+    serial_buffer = ""
     while not(quit):
 
         global curve00,curve01,curve10,curve11, ptr, data00,data01,data10
         # show loop freq
         #screen.addstr(ymax-1,xmax-20,"loop freq = "+str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
         screen.addstr(ymax-1,xmax-20,"ts = "+str(int((datetime.datetime.now()-epoch).total_seconds())))
+        # let's debug
+        serial_in = avionics.read(80)
+        decoded = line.decode()
+        debugdata.append(decoded)
+        if len(debugdata)>100:
+            with open("./debug.txt", 'a') as filehandle:
+                for entry in debugdata:
+                        filehandle.write('%s \n' % entry)
+
 
         # read from avionics serial (thru xbee)
         # BUG XXX: reading too fast
         # a complete message has at least 62 bytes FIXME
         # make sure in_waiting is slightly larger than that, read only when there's complete message in buffer
-        if (avionics.in_waiting > 80 ):
+        if (False or avionics.in_waiting > 80 ):
             line = avionics.readline()
             # machine readable data start with #
+            
             if (chr(line[0])=='#'):
                 # display data, remove trailing \r\n which mess up curser
                 screen.move(ymax-4,0)
@@ -278,7 +290,8 @@ if __name__ == '__main__':
             mag_offset = []
 
         # start main update loop
-        with serial.Serial(avionicsCommPort,115200, timeout=0.001) as avionics:
+        #with serial.Serial(avionicsCommPort,115200, timeout=0.001) as avionics:
+        with serial.Serial(avionicsCommPort,115200, timeout=0.1) as avionics:
             # TODO check if serial is successfully opened
 
             curses.wrapper(main,avionics)   
