@@ -11,7 +11,7 @@ class Vicon:
         if PORT is None:
             PORT = 51001
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #self.sock.settimeout(1.0/280.0)
+        #self.sock.settimeout(0.05)
         self.sock.bind((IP, PORT))
         
     def __del__(self):
@@ -19,9 +19,15 @@ class Vicon:
 
     def getViconUpdate(self):
         data, addr = self.sock.recvfrom(512)
+
+        #try:
+        #    data, addr = self.sock.recvfrom(512)
+        #except socket.timeout: 
+        #    return None
+
         # flush
-        while (len(data)==512):
-            data, addr = self.sock.recvfrom(512)
+        #while (len(data)==512):
+        #    data, addr = self.sock.recvfrom(512)
 
         frameNumber = unpack('i',data[0:4])
         #print(frameNumber)
