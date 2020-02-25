@@ -214,7 +214,7 @@ void led4() {
   }
 }
 
-bool rc_verbose = true;
+bool rc_verbose = false;
 void display_rc() {
   int rval = onoff(sCmd.next());
   if (rval != -1) {
@@ -222,16 +222,31 @@ void display_rc() {
   }
 }
 
+bool loophz_verbose = false;
+void display_loop_freq() {
+  int rval = onoff(sCmd.next());
+  if (rval != -1) {
+    loophz_verbose = (bool)rval;
+  }
+}
+
 void display_all() {
   int rval = onoff(sCmd.next());
   if (rval != -1) {
-    rc_verbose = (bool)rval;
+    loophz_verbose = rc_verbose = (bool)rval;
   }
 }
 
 // response to ping 
 void ping(){
   Serial1.println(F("$ping"));
+}
+
+// unrecognized comand response
+void badcommand(const char *command){
+    Serial1.print(F("Bad Command:"));
+    Serial1.println(command);
+    return;
 }
 
 // update serial remote control command
@@ -301,37 +316,58 @@ void setup() {
   sCmd.addCommand("led4", led4); // test function, takes 1 argument on or off
   sCmd.addCommand("rc", display_rc);
   //sCmd.addCommand("rssi", display_rssi);
-  //sCmd.addCommand("loophz", display_loop_freq);
+  sCmd.addCommand("loophz", display_loop_freq);
   sCmd.addCommand("all", display_all);
   sCmd.addCommand("ping",ping);
   sCmd.addCommand("ctrl",ctrl);
-  //sCmd.setDefaultHandler(badcommand);
+  sCmd.setDefaultHandler(badcommand);
 }
 
 unsigned long main_loop_ts;
 float main_loop_hz = 0.0;
+float main_loop_hz_array[50] = {0};
+int p_main_loop_hz_array = 0;
 void loop() {
-  main_loop_hz = 1000.0/(millis()-main_loop_ts);
-  main_loop_ts = millis();
+  main_loop_hz = 1000000.0/float(micros()-main_loop_ts);
+  main_loop_ts = micros();
+  main_loop_hz_array[p_main_loop_hz_array%50] = main_loop_hz;
+  p_main_loop_hz_array++;
 
   // process commandd
   sCmd.readSerial();
 
   //block -- manual/telemetry control switch
   // TODO, test the actual switching PWM
+  static bool flag_unable_to_switch = false;
   if (!flag_signal_loss){
-    if (rc_in_val[5]<1500 and !manual_control){ // switch to manual mode
-      manual_control = true;
-      Serial1.println(F("Manual Override"));
-    } else if (rc_in_val[5]>1500 and manual_control){ // switch to autonomous mode
-      // ensure a recent remote control command is present
-      // this avoids accidently switching control to remote when remote is not ready
-      if ((millis()-remote_ts)<50){
-        manual_control = false;
-        Serial1.println(F("Autonomous Control"));
-      } else {
-        Serial1.println(F("Unable to switch to Autonomous Mode, remote not updating"));
-      }
+    if (rc_in_val[5]>1300){ // switch to manual mode
+        if (!manual_control){ // if current mode is automatic, switch to manual
+          manual_control = true;
+          Serial1.println(F("Manual Override"));
+        } else {
+            flag_unable_to_switch = false; // this flag should stay false in manual mode
+        }
+    } else if (rc_in_val[5]<1300){ // switch to autonomous mode
+        if (manual_control){
+          // ensure a recent remote control command is present
+          // this avoids accidently switching control to remote when remote is not ready
+          if ((millis()-remote_ts)<50){
+            manual_control = false;
+            Serial1.println(F("Autonomous Control"));
+          } else {
+            // if user request autonomous mode but there's no autonomous control signal
+            if (!flag_unable_to_switch){
+                Serial1.println(F("Unable to switch to Autonomous Mode, remote not updating"));
+                // set a flag so we don't constantly show this message
+                flag_unable_to_switch = true;
+            }
+          }
+        } else if ((millis()-remote_ts)>50){
+            // always at autonomous mode, but control signal is lost
+            manual_control = true;
+            Serial1.println(F("Autonomous Control Signal Loss, manual override engaged"));
+          }
+
     }
   }
   //block --
@@ -392,27 +428,45 @@ void loop() {
   if ( manual_control && ((millis() - throttle_update_ts) > (unsigned long) (1000 / float(throttle_update_freq))) ) {
     throttle_update_ts = millis();
     setThrottleServoPulseWidth(rc_in_val[2]);
-    setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+    setFlapServoPulseWidth(rc_in_val[4]);
   }
   //block -- 
 
   // block -- machine readable output
   static unsigned long seq_no = 0;
-  static int serial_loop_freq = 10;
+  static int serial_loop_freq = 100;
   static unsigned long serial_loop_ts = millis();
   if ( (millis() - serial_loop_ts) > (unsigned long) (1000 / float(serial_loop_freq)) ) {
     serial_loop_ts = millis();
     seq_no++;
 
     // signify this is a line intended for machine parsing
+    // 26 bytes, -> max 500Hz
     Serial1.print('#');
     Serial1.print(seq_no);
     Serial1.print(",");
     Serial1.print(voltage_running_avg,2); // voltage
     Serial1.print(",");
-    Serial1.print(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,-1.0,1.0)); //flap, -1-1
+    Serial1.print(rc_in_val[4]); //flap, raw pwm
     Serial1.print(",");
-    Serial1.print(fmap(float(rc_in_val[2]),MIN_THROTTLE_SERVO_PULSEWIDTH,MAX_THROTTLE_SERVO_PULSEWIDTH,-1.0,1.0)); //flap, -1-1
+    Serial1.print(rc_in_val[2]); //throttle, raw pwm
+    Serial1.print(",");
+    Serial1.print((manual_control)?0:1);
     Serial1.println();
   }
+  // block --
+
+  //block -- human readable debug info
+  static int debug_output_freq = 10;
+  static unsigned long debug_output_ts = millis();
+  if ( (millis() - debug_output_ts) > (unsigned long) (1000 / float(debug_output_freq)) ) {
+    debug_output_ts = millis();
+    if (loophz_verbose){
+        float temp_main_loop_hz = 0.0;
+        for (int i=0;i<50;i++){ temp_main_loop_hz+= main_loop_hz_array[i];}
+        Serial1.print(F("Loop freq (Hz) : "));
+        Serial1.println(temp_main_loop_hz/50.0,2);
+    }
+  }
+  //block --
 }
