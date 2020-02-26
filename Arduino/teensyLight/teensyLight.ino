@@ -7,7 +7,7 @@
 // Manual control:
 // CH2(rc receiver) ->
 
-#define DEBUG
+//#define DEBUG
 
 #define PIN_LED 13
 // 3 red led array
@@ -321,6 +321,8 @@ void setup() {
   sCmd.addCommand("ping",ping);
   sCmd.addCommand("ctrl",ctrl);
   sCmd.setDefaultHandler(badcommand);
+  analogWriteFrequency(PIN_FLAP_SERVO, 300);
+  analogWriteFrequency(PIN_THROTTLE_SERVO, 300);
 }
 
 unsigned long main_loop_ts;
@@ -378,7 +380,8 @@ void loop() {
   if (!manual_control and !flag_signal_loss and (millis()-remote_ts<500) and((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
     remote_update_ts = millis();
     setThrottleServoPulseWidth(remote_throttle);
-    setFlapServoPulseWidth(remote_flap);
+    //setFlapServoPulseWidth(remote_flap);
+    setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
   }
   //block --
 
@@ -425,16 +428,25 @@ void loop() {
   //block -- manual control relay
   static int throttle_update_freq = 50;
   static unsigned long throttle_update_ts = millis();
+  //static int ctrl_seq_no = 0;
   if ( manual_control && ((millis() - throttle_update_ts) > (unsigned long) (1000 / float(throttle_update_freq))) ) {
     throttle_update_ts = millis();
+    /*
+    Serial1.print(F("control update "));
+    Serial1.print(ctrl_seq_no++);
+    Serial1.print(F("T:"));
+    Serial1.print(rc_in_val[2]);
+    Serial1.print(F("F:"));
+    Serial1.println(rc_in_val[4]);
+    */
     setThrottleServoPulseWidth(rc_in_val[2]);
-    setFlapServoPulseWidth(rc_in_val[4]);
+    setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
   }
   //block -- 
 
   // block -- machine readable output
   static unsigned long seq_no = 0;
-  static int serial_loop_freq = 100;
+  static int serial_loop_freq = 50;
   static unsigned long serial_loop_ts = millis();
   if ( (millis() - serial_loop_ts) > (unsigned long) (1000 / float(serial_loop_freq)) ) {
     serial_loop_ts = millis();

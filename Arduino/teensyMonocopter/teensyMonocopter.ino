@@ -1045,6 +1045,7 @@ void setup() {
 
 
   analogWriteFrequency(PIN_FLAP_SERVO, 300);
+  analogWriteFrequency(PIN_THROTTLE_SERVO, 300);
   pending_action_cyclic = RISING_NEUTRAL;
   TeensyDelay::begin();
   TeensyDelay::addDelayChannel(cyclic, 0);
