@@ -1,3 +1,7 @@
+### Data Formatting
+For run?.txt files, each entry is formatted as: time,x,y,z,rx,ry,rz,throttle,flap
+For richrun?.txt files, each entry is formatted as: time,x,y,z,rx,ry,rz,throttle(PWM),flap(PWM),voltage(volt),isAutomaticControl(for future compatibility, 1 if using command over telemetry, 0 if using command from RC transmitter)
+
 new batt installed
 run1: short, low hover, without vid
 run2: longer low hover, with vid
