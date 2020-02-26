@@ -39,7 +39,7 @@ class Vicon:
         if PORT is None:
             PORT = 51001
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #self.sock.settimeout(0.05)
+        self.sock.settimeout(0.05)
         self.sock.bind((IP, PORT))
         
     def __del__(self):
@@ -47,23 +47,26 @@ class Vicon:
 
     # NOTE this function is expected to be called very frequently, at a rate higher than Vicon's update rate (100-300Hz)
     def getViconUpdate(self):
-        data, addr = self.sock.recvfrom(512)
-        frameNumber = unpack('i',data[0:4])
-        #print(frameNumber)
-        itemsInBlock = data[4]
-        itemID = data[5]
-        itemDataSize = unpack('h',data[6:8])
-        itemName = data[8:32].decode("ascii")
-        # raw data in mm, convert to m
-        x = unpack('d',data[32:40])[0]/1000
-        y = unpack('d',data[40:48])[0]/1000
-        z = unpack('d',data[48:56])[0]/1000
-        # euler angles,rad, rotation order: rx,ry,rz, using axis of intermediate frame
-        rx = unpack('d',data[56:64])[0]
-        ry = unpack('d',data[64:72])[0]
-        rz = unpack('d',data[72:80])[0]
-        #print(x,y,z,degrees(rx),degrees(ry),degrees(rz))
-        return (x,y,z,rx,ry,rz)
+        try:
+            data, addr = self.sock.recvfrom(512)
+            frameNumber = unpack('i',data[0:4])
+            #print(frameNumber)
+            itemsInBlock = data[4]
+            itemID = data[5]
+            itemDataSize = unpack('h',data[6:8])
+            itemName = data[8:32].decode("ascii")
+            # raw data in mm, convert to m
+            x = unpack('d',data[32:40])[0]/1000
+            y = unpack('d',data[40:48])[0]/1000
+            z = unpack('d',data[48:56])[0]/1000
+            # euler angles,rad, rotation order: rx,ry,rz, using axis of intermediate frame
+            rx = unpack('d',data[56:64])[0]
+            ry = unpack('d',data[64:72])[0]
+            rz = unpack('d',data[72:80])[0]
+            #print(x,y,z,degrees(rx),degrees(ry),degrees(rz))
+            return (x,y,z,rx,ry,rz)
+        except socket.timeout:
+            return None
 
     def testFreq(self,packets=100):
         # test actual frequency of vicon update, with PACKETS number of state updates
