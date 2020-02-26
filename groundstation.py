@@ -119,6 +119,7 @@ def main(screen, avionics):
     flag_calibrated = False
     flap_new_plot_data = True
     flag_ping_in_progress = False
+    flag_vicon_not_ready = True
 
     calibration_data = []
     R_12 = None
@@ -224,8 +225,13 @@ def main(screen, avionics):
             lock_vicon_state.release()
             if (vicon_state is None):
                 displayLineno(2,"Vicon not ready")
-                enableVicon = False
+                #enableVicon = False
+                # flag indicating that "vicon not ready" is currently displayed on line 2
+                flag_vicon_not_ready = True
             else:
+                if (flag_vicon_not_ready):
+                    flag_vicon_not_ready = False
+                    displayLineno(2,"Vicon Enabled")
                 x,y,z,rx,ry,rz = vicon_state
                 text = str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)
                 text = "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f"%(x,y,z,rx,ry,rz) 
