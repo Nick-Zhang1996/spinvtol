@@ -1,8 +1,36 @@
 # Parse Vicon UDP Object Stream, single object
 import socket
-from time import time
+from time import time,sleep
 from struct import unpack
 from math import degrees,radians
+import threading
+from threading import Lock
+from signal import signal, SIGINT
+
+quit = False
+lock_quit = Lock()
+
+vicon_state = None
+lock_vicon_state = Lock()
+
+def exitHandler(signal_received, frame):
+    global quit
+    # Handle any cleanup here
+    quit = True
+    print("waiting for thread1 to finish")
+    t.join()
+    print("Exiting...")
+    exit(0)
+
+def viconUpateDaemon(vi):
+    global quit,lock_vicon_state,vicon_state
+    while (not quit):
+        local_state = vi.getViconUpdate()
+        #print("daemon "+str(local_state))
+        lock_vicon_state.acquire()
+        vicon_state = local_state
+        lock_vicon_state.release()
+    return
 
 class Vicon:
     def __init__(self,IP=None,PORT=None):
@@ -17,18 +45,9 @@ class Vicon:
     def __del__(self):
         self.sock.close()
 
+    # NOTE this function is expected to be called very frequently, at a rate higher than Vicon's update rate (100-300Hz)
     def getViconUpdate(self):
         data, addr = self.sock.recvfrom(512)
-
-        #try:
-        #    data, addr = self.sock.recvfrom(512)
-        #except socket.timeout: 
-        #    return None
-
-        # flush
-        #while (len(data)==512):
-        #    data, addr = self.sock.recvfrom(512)
-
         frameNumber = unpack('i',data[0:4])
         #print(frameNumber)
         itemsInBlock = data[4]
@@ -68,12 +87,28 @@ if __name__ == '__main__':
     tik = time()
     last_frame = None
     loss_count = 0
-    while True:
+    # example: for very simple uses where it's possible to loop at high frequency
+    while False:
         print(vi.getViconUpdate())
+
+    # example Test Frequency
     # test freq
     if False:
         for i in range(3):
             print("Freq = "+str(vi.testFreq())+"Hz")
+
+    # example: if main loop is run at a frequency lower than vicon update rate
+    # getViconUpdate() should be called at high frequency in a separate thread
+    # this example utilizes viconUpdateDaemon, some global variables, and an exit Handler
+    if True:
+        signal(SIGINT,exitHandler)
+        t = threading.Thread(name="vicon",target=viconUpateDaemon,args=(vi,))
+        t.start()
+        for i in range(20):
+            lock_vicon_state.acquire()
+            print("Main Thread : "+str(vicon_state))
+            lock_vicon_state.release()
+            sleep(1)
 
         
     
