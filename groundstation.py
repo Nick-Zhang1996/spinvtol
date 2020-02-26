@@ -14,11 +14,13 @@ from vicon import Vicon
 import threading
 from threading import Lock
 import os.path
+import pygame
 
 # -------  Settings ------------
 formatISfullsensor = False
 enablePlot = False
 enableVicon = False
+enableJoystick = False
 logFolder = "./log/"
 logPrefix = "richrun"
 logSuffix = ".txt"
@@ -36,11 +38,17 @@ lock_vicon_state = Lock()
 avionics_state = None
 lock_avionics_state = Lock()
 
+# joystick locks etc
+js_flap = None
+js_throttle = None
+lock_js = Lock()
+
 lock_logfile = Lock()
 quit = False
 isLogging = False
 logFilename = None
 logBuffer = []
+
 
 def displayText(text):
     global ymax,xmax,rolling_offset, screenHandle
@@ -59,7 +67,24 @@ def displayLineno(n,text):
     screen.clrtoeol()
     screen.addstr(ymax-n,0,text)
 
-def viconUpateDaemon(vi):
+def joystickUpdateDaemon(js):
+    global js_throttle,js_flap,lock_js,quit,enableJoystick
+    fmap = lambda x,a,b,c,d: c+(x-a)/(b-a)*(d-c)
+    while (not quit and enableJoystick):
+        pygame.event.pump()
+        throttle = fmap(js.get_axis(5),-1.0,1.0,1098,1939)
+        flap = fmap(js.get_axis(1),-1.0,1.0,1099,1939)
+        lock_js.acquire()
+        js_throttle = throttle
+        js_flap = flap
+        lock_js.release()
+
+    js_throttle = None
+    js_flap = None
+        
+
+
+def viconUpdateDaemon(vi):
     global quit,lock_vicon_state,vicon_state,avionics_state,lock_avionics_state
     global isLogging,logFilename,logBuffer,lock_logfile
     while (not quit):
@@ -93,9 +118,15 @@ def viconUpateDaemon(vi):
 
 
 def main(screen, avionics):
-    global screenHandle,enableVicon,enablePlot,formatISfullsensor
-    global quit,lock_vicon_state,vicon_state,avionics_state,lock_avionics_state
-    global isLogging,logFilename,logBuffer,lock_logfile
+    global screenHandle,formatISfullsensor,quit
+    global enableVicon,enableJoystick,enablePlot
+    global thread_joystick,thread_vicon
+    global lock_logfile,lock_avionics_state,lock_vicon_state,lock_js
+    global vicon_state,avionics_state,js_flap,js_throttle
+    global isLogging,logFilename,logBuffer
+
+
+
     screenHandle = screen
     curses.curs_set(0)                      # Set cursor visibility where 0 = invisible,
     screen.nodelay(True)                    # Set getch() to be non-blocking - important!
@@ -109,9 +140,10 @@ def main(screen, avionics):
     command = ""
     # ---------- display format ------------
     # --- human readable text ----- (scrollable,non-erasing)
-    # line 4: avionics output, machine
-    # line 3: test stand output, machine
-    # line 2 last command executed
+    # line 5: joystick output, throttle, flap, in that order
+    # line 4: avionics stream, machine
+    # line 3: vicon stream, machine
+    # line 2  last command executed
     # line 1: interactive command in buffer (ymax-1)
 
     # main loop, print,parse arduino output and send command
@@ -236,6 +268,12 @@ def main(screen, avionics):
                 text = str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)
                 text = "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f"%(x,y,z,rx,ry,rz) 
                 displayLineno(3,"Vicon Stream: "+text)
+        if (enableJoystick):
+            lock_js.acquire()
+            local_throttle = js_throttle
+            local_flap = js_flap
+            lock_js.release()
+            displayLineno(5,"Joystick: T:"+str(local_throttle)+" F:"+str(local_flap))
         screen.refresh()
 
         # read user input, store in buffer
@@ -290,7 +328,22 @@ def main(screen, avionics):
                     logFilename = logFolder+logPrefix+str(no)+logSuffix
                     isLogging = True
                     displayLineno(2,"log started: "+logFilename)
-
+            elif command[:-1] == 'joy':
+                # toggle joystick
+                if enableJoystick:
+                    enableJoystick = False
+                    displayLineno(2,"Joystick Disabled")
+                    thread_joystick.join()
+                else:
+                    try:
+                        js = pygame.joystick.Joystick(0)
+                        js.init()
+                        enableJoystick = True
+                        thread_joystick = threading.Thread(name="joystickUpdate",target=joystickUpdate,args=(js,))
+                        thread_joystick.start()
+                        displayLineno(2,"Joystick Enabled")
+                    except pygame.error as e:
+                        displayLineno(2,"Joystick Not available: " + e)
 
             else:
                 # command start with single letter 't': intended for teststand
@@ -366,6 +419,8 @@ def main(screen, avionics):
 if __name__ == '__main__':
     #establish serial comm to teststand and avionics,XXX not sure how to determine order, just plug them in in order...
     vi = Vicon()
+    pygame.display.init()
+    pygame.joystick.init()
 
     host_system = platform.system()
     # automatically identifies Linux or MacOS
@@ -404,16 +459,20 @@ if __name__ == '__main__':
 
 
         # start vicon update loop
-        thread_vicon = threading.Thread(name="viconUpdate",target=viconUpateDaemon,args=(vi,))
+        thread_vicon = threading.Thread(name="viconUpdate",target=viconUpdateDaemon,args=(vi,))
         thread_vicon.start()
 
         # start main update loop
-        with serial.Serial(avionicsCommPort,115200, timeout=0.1) as avionics:
-            curses.wrapper(main,avionics)
+        try:
+            with serial.Serial(avionicsCommPort,115200, timeout=0.1) as avionics:
+                curses.wrapper(main,avionics)
+        except serial.serialutil.SerialException as e:
+            print(e)
     finally:
         quit = True
         thread_vicon.join()
-        
+        if (enableJoystick):
+            thread_joystick.join()
 
         if (enablePlot):
             print("Please close the plot window")
