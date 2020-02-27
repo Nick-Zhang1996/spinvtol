@@ -9,6 +9,8 @@
 
 //#define DEBUG
 
+#define REMOTE_MAX_DELAY_MS 55
+
 #define PIN_LED 13
 // 3 red led array
 #define PIN_LED1 9
@@ -230,6 +232,14 @@ void display_loop_freq() {
   }
 }
 
+bool remote_verbose = false;
+void display_remote_sig_delay() {
+  int rval = onoff(sCmd.next());
+  if (rval != -1) {
+    remote_verbose = (bool)rval;
+  }
+}
+
 void display_all() {
   int rval = onoff(sCmd.next());
   if (rval != -1) {
@@ -257,23 +267,22 @@ volatile int remote_throttle = MIN_THROTTLE_SERVO_PULSEWIDTH;
 volatile int remote_flap = NEUTRAL_FLAP_SERVO_PULSEWIDTH;
 volatile int remote_buffer = MIN_THROTTLE_SERVO_PULSEWIDTH;
 void ctrl(){
-  remote_ts = millis();
   // throttle
   remote_buffer = atoi(sCmd.next());
-  if (remote_buffer<=MAX_THROTTLE_SERVO_PULSEWIDTH && remote_buffer>=MIN_THROTTLE_SERVO_PULSEWIDTH){
-    remote_throttle = remote_buffer;
-  }
+  remote_buffer = (remote_buffer>MAX_THROTTLE_SERVO_PULSEWIDTH)?MAX_THROTTLE_SERVO_PULSEWIDTH:remote_buffer;
+  remote_throttle = (remote_buffer<MIN_THROTTLE_SERVO_PULSEWIDTH)?MIN_THROTTLE_SERVO_PULSEWIDTH:remote_buffer;
 
   // flap
   remote_buffer = atoi(sCmd.next());
-  if (remote_buffer<=MAX_FLAP_SERVO_PULSEWIDTH && remote_buffer>=MIN_FLAP_SERVO_PULSEWIDTH){
-    remote_flap = remote_buffer;
-  }
+  remote_buffer = (remote_buffer>VR_MAX)?VR_MAX:remote_buffer;
+  remote_flap = (remote_buffer<VR_MIN)?VR_MIN:remote_buffer;
+
+  remote_ts = millis();
 
 #ifdef DEBUG
-  Serial1.print(F("Throttle: "));
+  Serial1.print(F("R T:"));
   Serial1.print(remote_throttle);
-  Serial1.print(F("Flap: "));
+  Serial1.print(F("F:"));
   Serial1.println(remote_flap);
 #endif
 
@@ -320,6 +329,7 @@ void setup() {
   sCmd.addCommand("all", display_all);
   sCmd.addCommand("ping",ping);
   sCmd.addCommand("ctrl",ctrl);
+  sCmd.addCommand("remote",display_remote_sig_delay);
   sCmd.setDefaultHandler(badcommand);
   analogWriteFrequency(PIN_FLAP_SERVO, 300);
   analogWriteFrequency(PIN_THROTTLE_SERVO, 300);
@@ -329,6 +339,9 @@ unsigned long main_loop_ts;
 float main_loop_hz = 0.0;
 float main_loop_hz_array[50] = {0};
 int p_main_loop_hz_array = 0;
+unsigned long remote_delay_ms_array[50] = {0};
+int p_remote_delay_ms_array = 0;
+
 void loop() {
   main_loop_hz = 1000000.0/float(micros()-main_loop_ts);
   main_loop_ts = micros();
@@ -341,6 +354,9 @@ void loop() {
   //block -- manual/telemetry control switch
   // TODO, test the actual switching PWM
   static bool flag_unable_to_switch = false;
+  unsigned long remote_signal_delay = 0;
+  remote_signal_delay = millis()-remote_ts;
+  remote_delay_ms_array[p_remote_delay_ms_array++] = remote_signal_delay;
   if (!flag_signal_loss){
     if (rc_in_val[5]>1300){ // switch to manual mode
         if (!manual_control){ // if current mode is automatic, switch to manual
@@ -353,7 +369,7 @@ void loop() {
         if (manual_control){
           // ensure a recent remote control command is present
           // this avoids accidently switching control to remote when remote is not ready
-          if ((millis()-remote_ts)<50){
+          if (remote_signal_delay<REMOTE_MAX_DELAY_MS){
             manual_control = false;
             Serial1.println(F("Autonomous Control"));
           } else {
@@ -364,10 +380,11 @@ void loop() {
                 flag_unable_to_switch = true;
             }
           }
-        } else if ((millis()-remote_ts)>50){
+        } else if (remote_signal_delay>REMOTE_MAX_DELAY_MS){
             // always at autonomous mode, but control signal is lost
             manual_control = true;
-            Serial1.println(F("Autonomous Control Signal Loss, manual override engaged"));
+            Serial1.print(F("Autonomous Control Signal Loss, manual override engaged, dt= "));
+            Serial1.println(remote_signal_delay);
           }
 
     }
@@ -377,11 +394,10 @@ void loop() {
   //block -- autonomous control
   static int remote_update_freq = 50;
   static unsigned long remote_update_ts = millis();
-  if (!manual_control and !flag_signal_loss and (millis()-remote_ts<500) and((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
+  if (!manual_control and !flag_signal_loss and (remote_signal_delay<REMOTE_MAX_DELAY_MS) and((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
     remote_update_ts = millis();
     setThrottleServoPulseWidth(remote_throttle);
-    //setFlapServoPulseWidth(remote_flap);
-    setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
+    setFlapServoPulseWidth(fmap(float(remote_flap),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
   }
   //block --
 
@@ -474,10 +490,18 @@ void loop() {
   if ( (millis() - debug_output_ts) > (unsigned long) (1000 / float(debug_output_freq)) ) {
     debug_output_ts = millis();
     if (loophz_verbose){
-        float temp_main_loop_hz = 0.0;
-        for (int i=0;i<50;i++){ temp_main_loop_hz+= main_loop_hz_array[i];}
+        float temp_main_loop_hz = 9999.0;
+        //for (int i=0;i<50;i++){ temp_main_loop_hz+= main_loop_hz_array[i];}
+        for (int i=0;i<50;i++){ temp_main_loop_hz = (temp_main_loop_hz<main_loop_hz_array[i])?temp_main_loop_hz:main_loop_hz_array[i];}
         Serial1.print(F("Loop freq (Hz) : "));
         Serial1.println(temp_main_loop_hz/50.0,2);
+    }
+
+    if (remote_verbose){
+        unsigned long temp_remote_sig_delay_ms = 0;
+        for (int i=0;i<50;i++){ temp_remote_sig_delay_ms = (temp_remote_sig_delay_ms>remote_delay_ms_array[i])?temp_remote_sig_delay_ms:remote_delay_ms_array[i];}
+        Serial1.print(F("tele_sig_dt(ms) = "));
+        Serial1.println(temp_remote_sig_delay_ms);
     }
   }
   //block --

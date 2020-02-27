@@ -33,6 +33,8 @@ screenHandle = None
 # vicon_state: (x,y,z,rx,ry,rz)
 vicon_state = None
 lock_vicon_state = Lock()
+thread_vicon = None
+thread_joystick = None
 
 # avionics_state: voltage,flapPWM,throttlePWM,isAutomaticControl
 avionics_state = None
@@ -67,8 +69,11 @@ def displayLineno(n,text):
     screen.clrtoeol()
     screen.addstr(ymax-n,0,text)
 
-def joystickUpdateDaemon(js):
+debug_joy_update_interval_ms = 0.0
+debug_joy_ts = 0.0
+def joystickUpdateDaemon(js,avionics):
     global js_throttle,js_flap,lock_js,quit,enableJoystick
+    global debug_joy_update_interval_ms,debug_joy_ts
     fmap = lambda x,a,b,c,d: c+(x-a)/(b-a)*(d-c)
     while (not quit and enableJoystick):
         pygame.event.pump()
@@ -78,6 +83,11 @@ def joystickUpdateDaemon(js):
         js_throttle = throttle
         js_flap = flap
         lock_js.release()
+        avionics.write(("ctrl %d %d\r\n"%(throttle,flap)).encode())
+        debug_joy_update_interval_ms = (time()-debug_joy_ts)*1000
+        debug_joy_ts = time()
+
+        sleep(0.03)
 
     js_throttle = None
     js_flap = None
@@ -124,6 +134,7 @@ def main(screen, avionics):
     global lock_logfile,lock_avionics_state,lock_vicon_state,lock_js
     global vicon_state,avionics_state,js_flap,js_throttle
     global isLogging,logFilename,logBuffer
+    global debug_joy_update_interval_ms
 
 
 
@@ -256,14 +267,14 @@ def main(screen, avionics):
             local_vicon_state = vicon_state
             lock_vicon_state.release()
             if (vicon_state is None):
-                displayLineno(2,"Vicon not ready")
+                displayLineno(2,"Vicon unavailable")
                 #enableVicon = False
                 # flag indicating that "vicon not ready" is currently displayed on line 2
                 flag_vicon_not_ready = True
             else:
                 if (flag_vicon_not_ready):
                     flag_vicon_not_ready = False
-                    displayLineno(2,"Vicon Enabled")
+                    displayLineno(2,"Vicon Capture Enabled")
                 x,y,z,rx,ry,rz = vicon_state
                 text = str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)
                 text = "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f"%(x,y,z,rx,ry,rz) 
@@ -273,7 +284,7 @@ def main(screen, avionics):
             local_throttle = js_throttle
             local_flap = js_flap
             lock_js.release()
-            displayLineno(5,"Joystick: T:"+str(local_throttle)+" F:"+str(local_flap))
+            displayLineno(5,"Joystick: T: %d F: %d ,interval(ms) %d"%(local_throttle,local_flap,debug_joy_update_interval_ms))
         screen.refresh()
 
         # read user input, store in buffer
@@ -339,11 +350,11 @@ def main(screen, avionics):
                         js = pygame.joystick.Joystick(0)
                         js.init()
                         enableJoystick = True
-                        thread_joystick = threading.Thread(name="joystickUpdate",target=joystickUpdate,args=(js,))
+                        thread_joystick = threading.Thread(name="joystickUpdate",target=joystickUpdateDaemon,args=(js,avionics))
                         thread_joystick.start()
-                        displayLineno(2,"Joystick Enabled")
+                        displayLineno(2,"Joystick Enabled : "+str(js.get_name()))
                     except pygame.error as e:
-                        displayLineno(2,"Joystick Not available: " + e)
+                        displayLineno(2,"Joystick Not available: " + str(e))
 
             else:
                 # command start with single letter 't': intended for teststand
