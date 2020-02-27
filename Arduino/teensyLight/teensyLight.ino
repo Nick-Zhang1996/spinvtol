@@ -9,7 +9,7 @@
 
 //#define DEBUG
 
-#define REMOTE_MAX_DELAY_MS 55
+#define REMOTE_MAX_DELAY_MS 80
 
 #define PIN_LED 13
 // 3 red led array
@@ -339,7 +339,7 @@ unsigned long main_loop_ts;
 float main_loop_hz = 0.0;
 float main_loop_hz_array[50] = {0};
 int p_main_loop_hz_array = 0;
-unsigned long remote_delay_ms_array[50] = {0};
+unsigned long remote_delay_ms_array[100] = {0};
 int p_remote_delay_ms_array = 0;
 
 void loop() {
@@ -352,11 +352,10 @@ void loop() {
   sCmd.readSerial();
 
   //block -- manual/telemetry control switch
-  // TODO, test the actual switching PWM
   static bool flag_unable_to_switch = false;
   unsigned long remote_signal_delay = 0;
   remote_signal_delay = millis()-remote_ts;
-  remote_delay_ms_array[p_remote_delay_ms_array++] = remote_signal_delay;
+  remote_delay_ms_array[(p_remote_delay_ms_array++)%100] = remote_signal_delay;
   if (!flag_signal_loss){
     if (rc_in_val[5]>1300){ // switch to manual mode
         if (!manual_control){ // if current mode is automatic, switch to manual
@@ -390,6 +389,8 @@ void loop() {
     }
   }
   //block --
+  // process commandd
+  sCmd.readSerial();
 
   //block -- autonomous control
   static int remote_update_freq = 50;
@@ -400,6 +401,8 @@ void loop() {
     setFlapServoPulseWidth(fmap(float(remote_flap),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
   }
   //block --
+  // process commandd
+  sCmd.readSerial();
 
   //block -- voltage update
   static int voltage_hist[VOLTAGE_BUFFER_LEN] = {0};
@@ -439,6 +442,8 @@ void loop() {
     }
   }
   // block ---
+  // process commandd
+  sCmd.readSerial();
 
 
   //block -- manual control relay
@@ -459,6 +464,8 @@ void loop() {
     setFlapServoPulseWidth(fmap(float(rc_in_val[4]),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
   }
   //block -- 
+  // process commandd
+  sCmd.readSerial();
 
   // block -- machine readable output
   static unsigned long seq_no = 0;
@@ -483,6 +490,8 @@ void loop() {
     Serial1.println();
   }
   // block --
+  // process commandd
+  sCmd.readSerial();
 
   //block -- human readable debug info
   static int debug_output_freq = 10;
@@ -499,7 +508,7 @@ void loop() {
 
     if (remote_verbose){
         unsigned long temp_remote_sig_delay_ms = 0;
-        for (int i=0;i<50;i++){ temp_remote_sig_delay_ms = (temp_remote_sig_delay_ms>remote_delay_ms_array[i])?temp_remote_sig_delay_ms:remote_delay_ms_array[i];}
+        for (int i=0;i<100;i++){ temp_remote_sig_delay_ms = (temp_remote_sig_delay_ms>remote_delay_ms_array[i])?temp_remote_sig_delay_ms:remote_delay_ms_array[i];}
         Serial1.print(F("tele_sig_dt(ms) = "));
         Serial1.println(temp_remote_sig_delay_ms);
     }
