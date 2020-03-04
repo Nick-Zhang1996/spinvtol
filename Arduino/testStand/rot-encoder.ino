@@ -1,6 +1,5 @@
  /*
-  Rotary Encoder Demo
-  rot-encode-demo.ino
+  Rotary Encoder Test
   Demonstrates operation of Rotary Encoder
   Displays results on Serial Monitor
 */
