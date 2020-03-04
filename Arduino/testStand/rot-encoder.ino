@@ -11,13 +11,13 @@
  // LED Outputs
  #define ledCW 8
  #define ledCCW 9
- #define tick 30
+ #define tick 32.72727
  #define pi 3.14159265358979323846264338
 
  int counter = 0; 
  int currentStateCLK;
- int previousStateCLK; 
- int omega, cur_time, prev_time;
+ int previousStateCLK;
+ int toggle;
 
  String encdir ="";
 
@@ -40,6 +40,9 @@
 
  } 
 
+double omega, elapsed_time, rev = 0, temp_rev = 0;
+long cur_time, prev_time; // elapsed_time;
+
  void loop() { 
   
   // Read the current state of inputCLK
@@ -48,8 +51,11 @@
    // If the previous and the current state of the inputCLK are different then a pulse has occured
    if (currentStateCLK != previousStateCLK){ 
 
+     if (toggle){
      prev_time = cur_time;
      cur_time = millis();
+     }
+     toggle = !toggle;
      // If the inputDT state is different than the inputCLK state then 
      // the encoder is rotating counterclockwise
      if (digitalRead(inputDT) != currentStateCLK) { 
@@ -64,15 +70,21 @@
        encdir ="CW";
        digitalWrite(ledCW, HIGH);
        digitalWrite(ledCCW, LOW);
-       
+        
      }
-     Serial.print("Direction: ");
-     Serial.print(encdir);
-     Serial.print(" -- Value: ");
-     Serial.println(counter);
+     elapsed_time = (double)(cur_time-prev_time)/1000;
+     // Serial.println(elapsed_time);
+     // omega = tick/180.0*pi/elapsed_time;
+     temp_rev = tick/360.0/elapsed_time; // Simple Average filter
+     // Serial.println(counter);
+     if (counter > 1){
+         rev = (99*rev + temp_rev)/100;
+         Serial.println(rev);
+         Serial.println(temp_rev);
+     }
+     
    } 
    // Update previousStateCLK with the current state
    previousStateCLK = currentStateCLK; 
-
-   omega = tick/180*pi/()cur_time-prev_time);
+   
  }
