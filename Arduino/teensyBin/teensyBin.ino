@@ -220,6 +220,7 @@ void parseSerial(){
         struct monomsg packet;
         packet.msg_type = MSG_PING;
         Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
+        digitalWrite(PIN_LED,HIGH);
 
       }
 

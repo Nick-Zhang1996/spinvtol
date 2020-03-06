@@ -29,6 +29,7 @@ void loop(){
     packet.throttlePWM = 1707;
     packet.telem_ctrl = 1;
     //Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
+    Serial.println("Hello");
 
     if (Serial.available()>=5){
         for (int i=0;i<5;i++){
@@ -37,11 +38,13 @@ void loop(){
         int msgType = buffer[0];
         // lower byte is sent first
         uint16_t flap = ((uint16_t)buffer[2]<<8)+buffer[1];
-        Serial.println(flap);
+        //Serial.println(flap);
         if (flap==1500){
             digitalWrite(13,HIGH);
+        } else{
+            digitalWrite(13,LOW);
         }
 
     }
-    //delay(20);
+    delay(20);
 }

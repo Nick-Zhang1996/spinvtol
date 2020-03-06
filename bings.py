@@ -149,9 +149,9 @@ def viconUpdateDaemon(vi,avionics):
             if (len(vicon_list)<5):
                 vicon_list.append(local_vicon_state)
             else:
-                thrust_N,flap_rad = expControl(vicon_list)
-
-                remote_flapPWM,remote_throttlePWM = cvt2pwm(thrust_N,flap_rad,voltage)
+                #thrust_N,flap_rad = expControl(vicon_list)
+                #remote_flapPWM,remote_throttlePWM = cvt2pwm(thrust_N,flap_rad,voltage)
+                remote_flapPWM,remote_throttlePWM = (1300,1500)
                 vicon_list = []
                 outdata = bytearray(5)
                 # message type 1:control update 2:ping request
@@ -232,6 +232,7 @@ def main(screen, avionics):
                 lock_avionics_state.acquire()
                 avionics_state = voltage,flapPWM,throttlePWM,isTelemCtrl
                 lock_avionics_state.release()
+                displayLineno(4,"%f V, F: %d, T: %d, %d"%(voltage,flapPWM,throttlePWM,isTelemCtrl))
             elif (msgType ==2):
                 # ping response
                 tac = time()
