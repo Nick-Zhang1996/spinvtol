@@ -35,7 +35,8 @@ void loop(){
             buffer[i] = Serial.read();
         }
         int msgType = buffer[0];
-        uint16_t flap = buffer[1]<<8+buffer[2];
+        // lower byte is sent first
+        uint16_t flap = ((uint16_t)buffer[2]<<8)+buffer[1];
         Serial.println(flap);
         if (flap==1500){
             digitalWrite(13,HIGH);
@@ -44,5 +45,3 @@ void loop(){
     }
     //delay(20);
 }
-
-
