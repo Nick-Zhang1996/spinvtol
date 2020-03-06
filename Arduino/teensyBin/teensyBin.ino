@@ -218,7 +218,7 @@ void parseSerial(){
 
       if (msgType==2){
         struct monomsg packet;
-        packet.msgType = MSG_PING;
+        packet.msg_type = MSG_PING;
         Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
 
       }
