@@ -1,6 +1,7 @@
 import serial
 from time import sleep
 from struct import unpack,pack
+import binascii
 avionicsCommPort = '/dev/ttyUSB0'
 try:
     with serial.Serial(avionicsCommPort,115200, timeout=0.1) as avionics:
@@ -25,13 +26,14 @@ try:
 
             outdata = bytearray(5)
             # message type
-            outdata[0] = 1
+            outdata[0] = 2
             # flap pwm
             outdata[1:3] = pack('H',1500)
             # throttle pwm
             outdata[3:] = pack('H',1606)
 
-            avionics.write(outdata)
-        sleep(0.01)
+            outcount = avionics.write(outdata)
+            #print('out '+str(outcount)+':'+binascii.hexlify(outdata))
+            sleep(0.02)
 except serial.serialutil.SerialException as e:
     print(e)
