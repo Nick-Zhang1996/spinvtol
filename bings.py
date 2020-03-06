@@ -124,16 +124,16 @@ def viconUpdateDaemon(vi,avionics):
         vicon_state = local_vicon_state
         lock_vicon_state.release()
 
+        lock_avionics_state.acquire()
+        local_avionics_state = avionics_state
+        lock_avionics_state.release()
+        if (local_vicon_state is None):
+            # should not happen
+            continue
+        voltage,flapPWM,throttlePWM,isTelemCtrl = local_avionics_state
 
         if (isLogging):
-            lock_avionics_state.acquire()
-            local_avionics_state = avionics_state
-            lock_avionics_state.release()
-            if (local_vicon_state is None):
-                # should not happen
-                continue
             x,y,z,rx,ry,rz = local_vicon_state
-            voltage,flapPWM,throttlePWM,isTelemCtrl = local_avionics_state
 
             dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttlePWM)+","+str(flapPWM)+","+str(voltage)+","+ str(1 if isTelemCtrl else 0) + "\n"
             logBuffer.append(dataFrame)
@@ -149,7 +149,9 @@ def viconUpdateDaemon(vi,avionics):
             if (len(vicon_list)<5):
                 vicon_list.append(local_vicon_state)
             else:
-                remote_flapPWM,remote_throttlePWM = expControl(vicon_list)
+                thrust_N,flap_rad = expControl(vicon_list)
+
+                remote_flapPWM,remote_throttlePWM = cvt2pwm(thrust_N,flap_rad,voltage)
                 vicon_list = []
                 outdata = bytearray(5)
                 # message type 1:control update 2:ping request
@@ -160,7 +162,6 @@ def viconUpdateDaemon(vi,avionics):
                 outdata[3:] = pack('H',remote_throttlePWM)
                 outcount = avionics.write(outdata)
                 flag_new_remote = True
-
 
     return
 
