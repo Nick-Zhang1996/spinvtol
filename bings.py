@@ -1,4 +1,4 @@
-# binary version of groundstation.py
+# binary protocol version of groundstation.py
 # data processor/logger for monocopter avionics with vicon
 import serial
 import curses
@@ -14,14 +14,17 @@ from time import time,sleep
 from vicon import Vicon
 import threading
 from threading import Lock
+from struct import pack,unpack
 import os.path
 import pygame
+from dummyController import expControl,cvt2pwm
 
 # -------  Settings ------------
 formatISfullsensor = False
 enablePlot = False
 enableVicon = False
 enableJoystick = False
+enableController = False
 logFolder = "./log/"
 logPrefix = "richrun"
 logSuffix = ".txt"
@@ -37,7 +40,7 @@ lock_vicon_state = Lock()
 thread_vicon = None
 thread_joystick = None
 
-# avionics_state: voltage,flapPWM,throttlePWM,isAutomaticControl
+# avionics_state: voltage,flapPWM,throttlePWM,isTelemCtrl
 avionics_state = None
 lock_avionics_state = Lock()
 
@@ -51,6 +54,12 @@ quit = False
 isLogging = False
 logFilename = None
 logBuffer = []
+
+# controller specific
+vicon_list = []
+remote_flapPWM = None
+remote_throttlePWM = None
+flag_new_remote = False
 
 
 def displayText(text):
@@ -84,7 +93,17 @@ def joystickUpdateDaemon(js,avionics):
         js_throttle = throttle
         js_flap = flap
         lock_js.release()
-        avionics.write(("ctrl %d %d\r\n"%(throttle,flap)).encode())
+        #avionics.write(("ctrl %d %d\r\n"%(throttle,flap)).encode())
+        
+        outdata = bytearray(5)
+        # message type 1:control update 2:ping request
+        outdata[0] = 1
+        # flap pwm
+        outdata[1:3] = pack('H',flap)
+        # throttle pwm
+        outdata[3:] = pack('H',throttle)
+        outcount = avionics.write(outdata)
+
         debug_joy_update_interval_ms = (time()-debug_joy_ts)*1000
         debug_joy_ts = time()
 
@@ -95,9 +114,10 @@ def joystickUpdateDaemon(js,avionics):
         
 
 
-def viconUpdateDaemon(vi):
+def viconUpdateDaemon(vi,avionics):
     global quit,lock_vicon_state,vicon_state,avionics_state,lock_avionics_state
     global isLogging,logFilename,logBuffer,lock_logfile
+    global vicon_list,enableController,remote_throttlePWM,remote_flapPWM,flag_new_remote
     while (not quit):
         local_vicon_state = vi.getViconUpdate()
         lock_vicon_state.acquire()
@@ -113,9 +133,9 @@ def viconUpdateDaemon(vi):
                 # should not happen
                 continue
             x,y,z,rx,ry,rz = local_vicon_state
-            voltage,flapPWM,throttlePWM,isAutomaticControl = local_avionics_state
+            voltage,flapPWM,throttlePWM,isTelemCtrl = local_avionics_state
 
-            dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttlePWM)+","+str(flapPWM)+","+str(voltage)+","+ str(1 if isAutomaticControl else 0) + "\n"
+            dataFrame = str(time())+","+str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)+","+str(throttlePWM)+","+str(flapPWM)+","+str(voltage)+","+ str(1 if isTelemCtrl else 0) + "\n"
             logBuffer.append(dataFrame)
             if len(logBuffer)>1000:
                 lock_logfile.acquire()
@@ -124,6 +144,23 @@ def viconUpdateDaemon(vi):
                             filehandle.write('%s' % entry)
                 logBuffer = []
                 lock_logfile.release()
+
+        if (enableController):
+            if (len(vicon_list)<5):
+                vicon_list.append(local_vicon_state)
+            else:
+                remote_flapPWM,remote_throttlePWM = expControl(vicon_list)
+                vicon_list = []
+                outdata = bytearray(5)
+                # message type 1:control update 2:ping request
+                outdata[0] = 1
+                # flap pwm
+                outdata[1:3] = pack('H',remote_flapPWM)
+                # throttle pwm
+                outdata[3:] = pack('H',remote_throttlePWM)
+                outcount = avionics.write(outdata)
+                flag_new_remote = True
+
 
     return
 
@@ -136,6 +173,7 @@ def main(screen, avionics):
     global vicon_state,avionics_state,js_flap,js_throttle
     global isLogging,logFilename,logBuffer
     global debug_joy_update_interval_ms
+    global enableController,remote_throttlePWM,remote_flapPWM,flag_new_remote,vicon_list
 
 
 
@@ -179,8 +217,9 @@ def main(screen, avionics):
         #screen.addstr(ymax-1,xmax-20,"loop freq = "+str(int(1.0/(datetime.datetime.now()-start_ts).total_seconds())))
         screen.addstr(ymax-1,xmax-20,"ts = "+str(int((datetime.datetime.now()-epoch).total_seconds())))
         # read from avionics serial (thru xbee)
+        # there's a large timeout (0.1s) so we can read before all data has arrived
         if (avionics.in_waiting > 0 ):
-            line = avionics.read(8)
+            data = avionics.read(8)
             msgType = data[0]
             if (msgType == 1):
                 # normal update
@@ -188,6 +227,10 @@ def main(screen, avionics):
                 flapPWM = unpack('H',data[3:5])[0]
                 throttlePWM = unpack('H',data[5:7])[0]
                 isTelemCtrl = data[7]
+
+                lock_avionics_state.acquire()
+                avionics_state = voltage,flapPWM,throttlePWM,isTelemCtrl
+                lock_avionics_state.release()
             elif (msgType ==2):
                 # ping response
                 tac = time()
@@ -198,7 +241,7 @@ def main(screen, avionics):
                     displayText("[avionics]: ping success, dt = " + str(tac-tic)+"s")
                     tic = 0.0
 
-        # Vicon display
+        # Vicon Display
         # NOTE disable vicon does not actually disable the daemon, just display
         if (enableVicon):
             lock_vicon_state.acquire()
@@ -217,12 +260,27 @@ def main(screen, avionics):
                 text = str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)
                 text = "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f"%(x,y,z,rx,ry,rz) 
                 displayLineno(3,"Vicon Stream: "+text)
+        else:
+            displayLineno(3,"Vicon Disabled ")
+
+        # Joystick Display
         if (enableJoystick):
             lock_js.acquire()
             local_throttle = js_throttle
             local_flap = js_flap
             lock_js.release()
             displayLineno(5,"Joystick: T: %d F: %d ,interval(ms) %d"%(local_throttle,local_flap,debug_joy_update_interval_ms))
+        else:
+            displayLineno(5,"Joystick Disabled")
+
+        # Controller Output Display
+        if (enableController):
+            if (flag_new_remote):
+                flag_new_remote = False
+                displayLineno(4,"Controller: F: %d T: %d"%(remote_flapPWM,remote_throttlePWM))
+        else:
+            displayLineno(4,"Controller Disabled")
+
         screen.refresh()
 
         # read user input, store in buffer
@@ -245,11 +303,16 @@ def main(screen, avionics):
             elif command[:-1] == 'clear':
                 screen.clear()
             elif command[:-1] == 'flush':
+                # Not sure about this
                 avionics.reset_input_buffer()
             elif command[:-1] == 'ping':
                 flag_ping_in_progress = True
                 tic = time()
-                avionics.write("ping\r\n".encode())
+                #avionics.write("ping\r\n".encode())
+                ping_packet = bytearray(5)
+                # message type
+                ping_packet[0] = 2
+                outcount = avionics.write(ping_packet)
                 displayLineno(2,"Ping...")
             elif command[:-1] == 'vicon':
                 enableVicon = not enableVicon
@@ -281,8 +344,8 @@ def main(screen, avionics):
                 # toggle joystick
                 if enableJoystick:
                     enableJoystick = False
-                    displayLineno(2,"Joystick Disabled")
                     thread_joystick.join()
+                    displayLineno(2,"Joystick Disabled")
                 else:
                     try:
                         js = pygame.joystick.Joystick(0)
@@ -293,23 +356,23 @@ def main(screen, avionics):
                         displayLineno(2,"Joystick Enabled : "+str(js.get_name()))
                     except pygame.error as e:
                         displayLineno(2,"Joystick Not available: " + str(e))
+            elif command[:-1] == 'ctrl':  # toggle external controller
+                if (enableJoystick): # disable controller
+                    enableJoystick = False
+                    displayText("External controller off...")
+                else:
+                    displayText("Switch to external controller...")
+                    if enableJoystick:
+                        enableJoystick = False
+                        thread_joystick.join()
+                        displayText("Joystick Automatically Disabled")
+                    vicon_list = []
+                    enableJoystick = True
 
             else:
-                # command start with single letter 't': intended for teststand
-                # command start with single letter 'a': intended for avionics
-                # e.g.  "t sync" -> send "sync" to teststand (with additional trailing \r\n)
-                # similarly 'a' for avionics
-                # it's ok to send the trailing \n, default behavior or arduino IDE's serial monitor
-                if command[0] == 'a':
-                    # avionics
-                    avionics.write(command[2:].encode())
-                    screen.move(ymax-2,0)
-                    screen.clrtoeol()
-                    screen.addstr(ymax-2,0,"Command Sent[avionics]: "+command[2:])
-                else:
-                    screen.move(ymax-2,0)
-                    screen.clrtoeol()
-                    screen.addstr(ymax-2,0,"Unrecognized command: "+command)
+                screen.move(ymax-2,0)
+                screen.clrtoeol()
+                screen.addstr(ymax-2,0,"Unrecognized command: "+command)
 
             # clear user input
             screen.move(ymax-1,0)
@@ -407,13 +470,14 @@ if __name__ == '__main__':
             mag_offset = []
 
 
-        # start vicon update loop
-        thread_vicon = threading.Thread(name="viconUpdate",target=viconUpdateDaemon,args=(vi,))
-        thread_vicon.start()
 
         # start main update loop
         try:
             with serial.Serial(avionicsCommPort,115200, timeout=0.1) as avionics:
+                # start vicon update loop
+                thread_vicon = threading.Thread(name="viconUpdate",target=viconUpdateDaemon,args=(vi,avionics))
+                thread_vicon.start()
+
                 curses.wrapper(main,avionics)
         except serial.serialutil.SerialException as e:
             print(e)
