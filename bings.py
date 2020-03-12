@@ -238,7 +238,7 @@ def main(screen, avionics):
                 lock_avionics_state.acquire()
                 avionics_state = voltage,flapPWM,throttlePWM,isTelemCtrl
                 lock_avionics_state.release()
-                displayLineno(4,"%f V, F: %d, T: %d, %d"%(voltage,flapPWM,throttlePWM,isTelemCtrl))
+                displayLineno(3,"[avionics]: %.2f V, F: %d, T: %d, %d"%(voltage,flapPWM,throttlePWM,isTelemCtrl))
             elif (msgType ==2):
                 # ping response
                 tac = time()
@@ -267,9 +267,9 @@ def main(screen, avionics):
                 x,y,z,rx,ry,rz = vicon_state
                 text = str(x)+","+str(y)+","+str(z)+","+str(rx)+","+str(ry)+","+str(rz)
                 text = "%.2f, %.2f, %.2f, %.2f, %.2f, %.2f"%(x,y,z,rx,ry,rz) 
-                displayLineno(3,"Vicon Stream: "+text)
+                displayLineno(4,"Vicon Stream: "+text)
         else:
-            displayLineno(3,"Vicon Disabled ")
+            displayLineno(4,"Vicon Disabled ")
 
         # Joystick Display
         if (enableJoystick):
@@ -285,9 +285,9 @@ def main(screen, avionics):
         if (enableController):
             if (flag_new_remote):
                 flag_new_remote = False
-                displayLineno(4,"Controller: F: %d T: %d"%(remote_flapPWM,remote_throttlePWM))
+                displayLineno(6,"Controller: F: %d T: %d"%(remote_flapPWM,remote_throttlePWM))
         else:
-            displayLineno(4,"Controller Disabled")
+            displayLineno(6,"Controller Disabled")
 
         screen.refresh()
 
@@ -317,9 +317,12 @@ def main(screen, avionics):
                 flag_ping_in_progress = True
                 tic = time()
                 #avionics.write("ping\r\n".encode())
-                ping_packet = bytearray(5)
+                ping_packet = bytearray(7)
+                # first two bytes serve as alignment, indicating start of package
+                ping_packet[0] = 9
+                ping_packet[1] = 9
                 # message type
-                ping_packet[0] = 2
+                ping_packet[2] = 2
                 outcount = avionics.write(ping_packet)
                 displayLineno(2,"Ping...")
             elif command[:-1] == 'vicon':
