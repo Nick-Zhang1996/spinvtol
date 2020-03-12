@@ -2,7 +2,7 @@ import serial
 from time import sleep,time
 from struct import unpack,pack
 import binascii
-avionicsCommPort = '/dev/ttyACM0'
+avionicsCommPort = '/dev/ttyUSB0'
 
 outdata = bytearray(7)
 # first two bytes serve as alignment, indicating start of package
@@ -32,7 +32,7 @@ try:
                 print(msgType,voltage,flapPWM,throttlePWM,isTelemCtrl)
                 # NOTE incoming: 1, 1105,1500,1707,1
 
-            if (time()-ts>0.020):
+            if (time()-ts>0.1):
                 outcount = avionics.write(outdata)
                 ts = time()
 

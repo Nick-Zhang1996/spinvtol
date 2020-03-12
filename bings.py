@@ -102,9 +102,9 @@ def joystickUpdateDaemon(js,avionics):
         # message type 1:control update 2:ping request
         outdata[2] = 1
         # flap pwm
-        outdata[3:5] = pack('H',flap)
+        outdata[3:5] = pack('H',int(flap))
         # throttle pwm
-        outdata[5:] = pack('H',throttle)
+        outdata[5:] = pack('H',int(throttle))
         outcount = avionics.write(outdata)
 
         debug_joy_update_interval_ms = (time()-debug_joy_ts)*1000

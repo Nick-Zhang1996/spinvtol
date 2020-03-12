@@ -202,8 +202,8 @@ void parseSerial(){
   // Byte 2: msg type 1->control update 2-> ping request, ignore following packet
   // 3-4: flapPWM
   // 5-6: throttlePWM
-  while (Serial.available()>0){
-      buffer[buffer_index%BUFFER_SIZE] = Serial.read();
+  while (Serial1.available()>0){
+      buffer[buffer_index%BUFFER_SIZE] = Serial1.read();
       buffer_index++;
   }
 
@@ -233,7 +233,7 @@ void parseSerial(){
         if (msgType==2){
           struct monomsg packet;
           packet.msg_type = MSG_PING;
-          Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
+          Serial1.write((const uint8_t *)&packet,sizeof(struct monomsg));
           digitalWrite(PIN_LED,HIGH);
 
         }
@@ -241,6 +241,7 @@ void parseSerial(){
         remote_ts = millis();
       }
   }
+}
 
 void setup() {
   Serial1.begin(115200);
@@ -297,7 +298,7 @@ void loop() {
   unsigned long remote_signal_delay = 0;
   remote_signal_delay = millis()-remote_ts;
   remote_delay_ms_array[(p_remote_delay_ms_array++)%100] = remote_signal_delay;
-  if (!flag_signal_loss){
+  if ( !flag_signal_loss){
     if (rc_in_val[5]>1300){ // switch to manual mode
         if (!manual_control){ // if current mode is automatic, switch to manual
           manual_control = true;
@@ -329,7 +330,7 @@ void loop() {
   //block -- autonomous control
   static int remote_update_freq = 50;
   static unsigned long remote_update_ts = millis();
-  if (!manual_control and !flag_signal_loss and (remote_signal_delay<REMOTE_MAX_DELAY_MS) and((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
+  if ( !manual_control and !flag_signal_loss and (remote_signal_delay<REMOTE_MAX_DELAY_MS) and((millis() - remote_update_ts) > (unsigned long) (1000 / float(remote_update_freq)))){
     remote_update_ts = millis();
     setThrottleServoPulseWidth(remote_throttle);
     setFlapServoPulseWidth(fmap(float(remote_flap),VR_MIN,VR_MAX,MIN_FLAP_SERVO_PULSEWIDTH,MAX_FLAP_SERVO_PULSEWIDTH));
@@ -406,7 +407,7 @@ void loop() {
       packet.throttlePWM = (uint16_t)remote_throttle;
     }
     packet.telem_ctrl = (manual_control)?0:1;
-    Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
+    Serial1.write((const uint8_t *)&packet,sizeof(struct monomsg));
 
   }
   // block --
