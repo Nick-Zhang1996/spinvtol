@@ -11,6 +11,7 @@
 //#define DEBUG
 
 #define REMOTE_MAX_DELAY_MS 80
+#define BUFFER_SIZE 7
 
 #define PIN_LED 13
 // 3 red led array
@@ -57,12 +58,12 @@
 // 8 bytes
 struct monomsg{
     uint8_t msg_type;
+    // 1: telemetry control, 2: RC control
+    uint8_t telem_ctrl;
     // voltage * 100
     uint16_t voltage;
     uint16_t flapPWM;
     uint16_t throttlePWM;
-    // 1: telemetry control, 2: RC control
-    uint8_t telem_ctrl;
 };
 
 // map from one range to another
@@ -193,42 +194,53 @@ volatile bool manual_control = true;
 volatile unsigned long remote_ts = 0; // use a timestamp to monitor if up to date control msg is available
 volatile uint16_t remote_throttle = MIN_THROTTLE_SERVO_PULSEWIDTH;
 volatile uint16_t remote_flap = NEUTRAL_FLAP_SERVO_PULSEWIDTH;
-uint8_t buffer[5] = {0};
+uint8_t buffer[BUFFER_SIZE] = {0};
+uint8_t buffer_index = 0;
 void parseSerial(){
-  // incoming packet length is 5
-  // Byte 0: msg type 1->control update 2-> ping request, ignore following packet
-  // 1-2: flapPWM
-  // 3-4: throttlePWM
-
-  if (Serial.available()>=5){
-      for (int i=0;i<5;i++){
-          buffer[i] = Serial.read();
-      }
-
-      int msgType = buffer[0];
-      if (msgType==1){
-        remote_flap = ((uint16_t)buffer[2]<<8)+buffer[1];
-        remote_flap = (remote_flap>VR_MAX)?VR_MAX:remote_flap;
-        remote_flap = (remote_flap<VR_MIN)?VR_MIN:remote_flap;
-
-        remote_throttle = ((uint16_t)buffer[4]<<8)+buffer[3];
-        remote_throttle = (remote_throttle>MAX_THROTTLE_SERVO_PULSEWIDTH)?MAX_THROTTLE_SERVO_PULSEWIDTH:remote_throttle;
-        remote_throttle = (remote_throttle<MIN_THROTTLE_SERVO_PULSEWIDTH)?MIN_THROTTLE_SERVO_PULSEWIDTH:remote_throttle;
-      }
-
-      if (msgType==2){
-        struct monomsg packet;
-        packet.msg_type = MSG_PING;
-        Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
-        digitalWrite(PIN_LED,HIGH);
-
-      }
-
+  // incoming packet length is 7
+  // Byte 0,1: 9, used for detecting misaligned data
+  // Byte 2: msg type 1->control update 2-> ping request, ignore following packet
+  // 3-4: flapPWM
+  // 5-6: throttlePWM
+  while (Serial.available()>0){
+      buffer[buffer_index%BUFFER_SIZE] = Serial.read();
+      buffer_index++;
   }
 
-  remote_ts = millis();
+  if (buffer_index>=BUFFER_SIZE){
+      // the package is not properly aligned
+      if (not (buffer[0]==9 and buffer[1]==9)){
+          // drop the first byte in buffer and shift remaining data forward
+          for (int i=0;i<BUFFER_SIZE-1;i++){
+              buffer[i] = buffer[i+1];
+          }
+          buffer_index--;
+      } else{
+        // process
+        buffer_index = 0;
 
-}
+        int msgType = buffer[2];
+        if (msgType==1){
+          remote_flap = ((uint16_t)buffer[4]<<8)+buffer[3];
+          remote_flap = (remote_flap>VR_MAX)?VR_MAX:remote_flap;
+          remote_flap = (remote_flap<VR_MIN)?VR_MIN:remote_flap;
+
+          remote_throttle = ((uint16_t)buffer[6]<<8)+buffer[5];
+          remote_throttle = (remote_throttle>MAX_THROTTLE_SERVO_PULSEWIDTH)?MAX_THROTTLE_SERVO_PULSEWIDTH:remote_throttle;
+          remote_throttle = (remote_throttle<MIN_THROTTLE_SERVO_PULSEWIDTH)?MIN_THROTTLE_SERVO_PULSEWIDTH:remote_throttle;
+        }
+
+        if (msgType==2){
+          struct monomsg packet;
+          packet.msg_type = MSG_PING;
+          Serial.write((const uint8_t *)&packet,sizeof(struct monomsg));
+          digitalWrite(PIN_LED,HIGH);
+
+        }
+
+        remote_ts = millis();
+      }
+  }
 
 void setup() {
   Serial1.begin(115200);

@@ -95,13 +95,16 @@ def joystickUpdateDaemon(js,avionics):
         lock_js.release()
         #avionics.write(("ctrl %d %d\r\n"%(throttle,flap)).encode())
         
-        outdata = bytearray(5)
+        outdata = bytearray(7)
+        # first two bytes serve as alignment, indicating start of package
+        outdata[0] = 9
+        outdata[1] = 9
         # message type 1:control update 2:ping request
-        outdata[0] = 1
+        outdata[2] = 1
         # flap pwm
-        outdata[1:3] = pack('H',flap)
+        outdata[3:5] = pack('H',flap)
         # throttle pwm
-        outdata[3:] = pack('H',throttle)
+        outdata[5:] = pack('H',throttle)
         outcount = avionics.write(outdata)
 
         debug_joy_update_interval_ms = (time()-debug_joy_ts)*1000
@@ -153,13 +156,16 @@ def viconUpdateDaemon(vi,avionics):
                 #remote_flapPWM,remote_throttlePWM = cvt2pwm(thrust_N,flap_rad,voltage)
                 remote_flapPWM,remote_throttlePWM = (1300,1500)
                 vicon_list = []
-                outdata = bytearray(5)
+                outdata = bytearray(7)
+                # first two bytes serve as alignment, indicating start of package
+                outdata[0] = 9
+                outdata[1] = 9
                 # message type 1:control update 2:ping request
-                outdata[0] = 1
+                outdata[2] = 1
                 # flap pwm
-                outdata[1:3] = pack('H',remote_flapPWM)
+                outdata[3:5] = pack('H',remote_flapPWM)
                 # throttle pwm
-                outdata[3:] = pack('H',remote_throttlePWM)
+                outdata[5:] = pack('H',remote_throttlePWM)
                 outcount = avionics.write(outdata)
                 flag_new_remote = True
 
@@ -224,10 +230,10 @@ def main(screen, avionics):
             msgType = data[0]
             if (msgType == 1):
                 # normal update
-                voltage = unpack('H',data[1:3])[0]/100.0
-                flapPWM = unpack('H',data[3:5])[0]
-                throttlePWM = unpack('H',data[5:7])[0]
-                isTelemCtrl = data[7]
+                isTelemCtrl = data[1]
+                voltage = unpack('H',data[2:4])[0]/100.0
+                flapPWM = unpack('H',data[4:6])[0]
+                throttlePWM = unpack('H',data[6:8])[0]
 
                 lock_avionics_state.acquire()
                 avionics_state = voltage,flapPWM,throttlePWM,isTelemCtrl
