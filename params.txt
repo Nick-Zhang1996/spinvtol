@@ -1,0 +1,1030 @@
+#begin params
+   apilotAelCoef 2.0
+   apilotAelGain 0.3
+   apilotElevCoef 2.0
+   apilotElevGain 0.3
+   apilotOn 0.0
+   apilotRudCoef 5.0
+   apilotRudGain 0.3
+   apilotType 0.0
+   breakPart Canopy 1.0 8.0 8.0 10.0 100.0 1.0 3000.0 3001.0 0.0
+   breakPart Cowl 1.0 8.0 8.0 10.0 100.0 1.0 1002.0 1003.0 1004.0
+   breakPart Glass 1.0 8.0 8.0 10.0 100.0 1.0 3001.0 0.0 0.0
+   breakPart LAileron 1.0 8.0 8.0 10.0 100.0 1.0 1005.0 1006.0 3000.0
+   breakPart LWing 1.0 8.0 8.0 10.0 100.0 1.0 1004.0 1005.0 1006.0
+   breakPart Motor 1.0 8.0 8.0 10.0 100.0 1.0 1003.0 1004.0 0.0
+   breakPart Prop 1.0 8.0 8.0 10.0 100.0 1.0 1001.0 1002.0 0.0
+   breakPart Prop1 1.0 8.0 8.0 10.0 100.0 1.0 1000.0 1001.0 0.0
+   breakPart RAileron 1.0 8.0 8.0 10.0 100.0 1.0 2002.0 0.0 0.0
+   breakPart RWing 1.0 8.0 8.0 10.0 100.0 1.0 2000.0 2001.0 2002.0
+   breakPart lflap 1.0 8.0 8.0 10.0 100.0 1.0 1006.0 2000.0 0.0
+   breakPart propdisk 10.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0
+   breakPart rflap 1.0 8.0 8.0 10.0 100.0 1.0 2001.0 2002.0 0.0
+   centerOfGravity 0.0 0.0 0.0
+   controlSound 0.0
+   dimensions 0.3 0.3 0.3
+   floatsHeight 0.12
+   floatsOffset -0.1
+   floatsVolumeUnits 4.0
+   gravity 9.8
+   initModelPos 2.0 0.02 -5.0
+   initModelRot 0.0 2.5132742 0.0
+   initSpeedVect 0.0 0.0 0.0
+   mainGearBSpeed 10.0 // Max bounce speed in meters/sec
+   mainGearBounce 1.0
+   mainGearDamping 100.0 >=0, bigger=less damping
+   mainGearFSpeed 14.0 // Min friction speed in meters/sec
+   mainGearFriction 0.5
+   mainGearFrictionOrt 6.1
+   mainGearSpring 100.0
+   maxSpeed 15.0
+   modelMass 4.0
+   modelMixers FlapsMixer
+   modelMotors motor1
+   modelName body.ac
+   modelReceivers receiver1
+   modelServos elevator laileron raileron ruder throttle lwing rwing LGearServo LDoorServo RGearServo RDoorServo TSteerServo LFlapServo RFlapServo
+   modelSubType 0.0
+   modelSwitches LDoorSwitch RDoorSwitch
+   modelTransmiters transmiter1
+   modelType 1.0
+   noseGearBounce 0.6
+   noseGearControlChannel 3.0 // 1=aileron, 3=rudder
+   noseGearFriction 0.08
+   noseGearFrictionOrt 1.1
+   noseGearSpring 100.0
+   noseGearTurnRatio 0.2
+   planeType 1.0
+   renderEnvBlend 1.0
+   renderFlag 0.0
+   retractType 1.0
+   scaleDragCoef 1.0
+   scaleInducedDragCoef 1.0
+   scaleLiftCoef 1.0
+   smokeExostPoint 1.5 -0.0 -0.0
+   smokeExostVect 10.0 0.0 0.0
+   specialMode 0.0
+   tailGearBounce 0.6
+   tailGearControlChannel 3.0 // 1=aileron, 3=rudder
+   tailGearFriction 0.08
+   tailGearFrictionOrt 1.1
+   tailGearSpring 100.0
+   tailGearTurnRatio 1.0
+   useFloats 1.0
+   useModelInitPos 0.0
+   verNumber 6.0
+#end params
+
+#begin liftsurface.EStab
+   debug 0.0
+   breakPartName none
+   renderGroupName EStab
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.EStab
+
+#begin liftsurface.Elevator
+   debug 0.0
+   breakPartName Elevator
+   renderGroupName Elevator
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName Propeller1
+   propWashCoef 0.4
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.Elevator
+
+#begin liftsurface.HBody1
+   debug 0.0
+   breakPartName none
+   renderGroupName HBody1
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.HBody1
+
+#begin liftsurface.HBody2
+   debug 0.0
+   breakPartName none
+   renderGroupName HBody2
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.HBody2
+
+#begin liftsurface.HBody3
+   debug 0.0
+   breakPartName none
+   renderGroupName HBody3
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.HBody3
+
+#begin liftsurface.LAileron
+   debug 0.0
+   breakPartName LAileron
+   renderGroupName LAileron
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.LAileron
+
+#begin liftsurface.LArm
+   debug 0.0
+   breakPartName none
+   renderGroupName LArm
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName model // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 0.0 // this part is retractable
+   jointPartMaterial 1.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 1002.0 // >0, bigger for stronger spring
+   jointDampCoef 50.5 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 1.0 // 1-x,2-y,3-z
+   jointAxis2 1.0 // 1-x,2-y,3-z
+   jointAxis1MinPos -0.05 // 999 for no min limit
+   jointAxis1MaxPos 0.15 // 999 for no max limit
+   jointAxis1Acc 3.0
+   jointAxis1Velocity 1.0 // usually 0
+   jointAxis2Acc 0.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 1000.0 // Max bounce speed in meters/sec
+   objectFSpeed 1000.0 // Min friction speed in meters/sec
+   objectBounce 0.5
+   objectDamping 10.0 >=0, bigger=less damping
+   objectFriction 2.0
+   objectFrictionOrt 2.0
+   objectSpring 5400.0
+   controlSound 0.0
+   maxSpeed 100.0
+#end liftsurface.LArm
+
+#begin liftsurface.LDoor
+   debug 0.0
+   breakPartName none
+   renderGroupName LDoor
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.LDoor
+
+#begin liftsurface.LFlap
+   debug 0.0
+   breakPartName none
+   renderGroupName LFlap
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName Propeller
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.LFlap
+
+#begin liftsurface.LWheel
+   debug 0.0
+   breakPartName none
+   renderGroupName LWheel
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName LArm // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 0.0 // this part is retractable
+   jointPartMaterial 7.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 0.1 // >0, bigger for stronger spring
+   jointDampCoef 1.0 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 3.0 // 1-x,2-y,3-z
+   jointAxis2 3.0 // 1-x,2-y,3-z
+   jointAxis1MinPos 999.0 // 999 for no min limit
+   jointAxis1MaxPos 999.0 // 999 for no max limit
+   jointAxis1Acc 0.0
+   jointAxis1Velocity 0.0 // usually 0
+   jointAxis2Acc 0.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 8.0 // Max bounce speed in meters/sec
+   objectFSpeed 10.0 // Min friction speed in meters/sec
+   objectBounce 0.0099
+   objectDamping 1000.0 >=0, bigger=less damping
+   objectFriction 0.6
+   objectFrictionOrt 6.0
+   objectSpring 100.0
+   controlSound 0.0
+   maxSpeed 1.0
+#end liftsurface.LWheel
+
+#begin liftsurface.LWing
+   debug 0.0
+   breakPartName LWing
+   renderGroupName LWing
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.LWing
+
+#begin liftsurface.RAileron
+   debug 0.0
+   breakPartName RAileron
+   renderGroupName RAileron
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.RAileron
+
+#begin liftsurface.RArm
+   debug 0.0
+   breakPartName none
+   renderGroupName Arm
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName model // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 0.0 // this part is retractable
+   jointPartMaterial 1.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 1002.0 // >0, bigger for stronger spring
+   jointDampCoef 50.5 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 1.0 // 1-x,2-y,3-z
+   jointAxis2 1.0 // 1-x,2-y,3-z
+   jointAxis1MinPos -0.15 // 999 for no min limit
+   jointAxis1MaxPos 0.05 // 999 for no max limit
+   jointAxis1Acc 3.0
+   jointAxis1Velocity -1.0 // usually 0
+   jointAxis2Acc 0.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 1000.0 // Max bounce speed in meters/sec
+   objectFSpeed 1000.0 // Min friction speed in meters/sec
+   objectBounce 0.5
+   objectDamping 10.0 >=0, bigger=less damping
+   objectFriction 2.0
+   objectFrictionOrt 2.0
+   objectSpring 5400.0
+   controlSound 0.0
+   maxSpeed 100.0
+#end liftsurface.RArm
+
+#begin liftsurface.RDoor
+   debug 0.0
+   breakPartName none
+   renderGroupName RDoor
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.RDoor
+
+#begin liftsurface.RFlap
+   debug 0.0
+   breakPartName none
+   renderGroupName RFlap
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName Propeller
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.RFlap
+
+#begin liftsurface.RWheel
+   debug 0.0
+   breakPartName none
+   renderGroupName RWheel
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName RArm // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 0.0 // this part is retractable
+   jointPartMaterial 7.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 0.1 // >0, bigger for stronger spring
+   jointDampCoef 1.0 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 3.0 // 1-x,2-y,3-z
+   jointAxis2 3.0 // 1-x,2-y,3-z
+   jointAxis1MinPos 999.0 // 999 for no min limit
+   jointAxis1MaxPos 999.0 // 999 for no max limit
+   jointAxis1Acc 0.0
+   jointAxis1Velocity 0.0 // usually 0
+   jointAxis2Acc 0.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 8.0 // Max bounce speed in meters/sec
+   objectFSpeed 10.0 // Min friction speed in meters/sec
+   objectBounce 0.0099
+   objectDamping 1000.0 >=0, bigger=less damping
+   objectFriction 0.6
+   objectFrictionOrt 6.0
+   objectSpring 100.0
+   controlSound 0.0
+   maxSpeed 1.0
+#end liftsurface.RWheel
+
+#begin liftsurface.RWing
+   debug 0.0
+   breakPartName RWing
+   renderGroupName RWing
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.RWing
+
+#begin liftsurface.Retract
+   debug 0.0
+   breakPartName none
+   renderGroupName Retract
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.Retract
+
+#begin liftsurface.Ruder
+   debug 0.0
+   breakPartName Ruder
+   renderGroupName Ruder
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName Propeller1
+   propWashCoef 0.4
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.Ruder
+
+#begin liftsurface.TStrut
+   debug 0.0
+   breakPartName none
+   renderGroupName TStrut
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName TStrut1 // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 1.0 // this part is retractable
+   jointPartMaterial 1.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 1002.0 // >0, bigger for stronger spring
+   jointDampCoef 500.5 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 3.0 // 1-x,2-y,3-z
+   jointAxis2 3.0 // 1-x,2-y,3-z
+   jointAxis1MinPos -0.1 // 999 for no min limit
+   jointAxis1MaxPos 0.1 // 999 for no max limit
+   jointAxis1Acc 1.0
+   jointAxis1Velocity -1.0 // usually 0
+   jointAxis2Acc 0.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 1000.0 // Max bounce speed in meters/sec
+   objectFSpeed 1000.0 // Min friction speed in meters/sec
+   objectBounce 0.5
+   objectDamping 500.0 >=0, bigger=less damping
+   objectFriction 2.0
+   objectFrictionOrt 2.0
+   objectSpring 15400.0
+   controlSound 0.0
+   maxSpeed 100.0
+#end liftsurface.TStrut
+
+#begin liftsurface.TStrut1
+   debug 0.0
+   breakPartName none
+   renderGroupName TStrut
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName model // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 1.0 // this part is retractable
+   jointPartMaterial 8.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 5000.0 // >0, bigger for stronger spring
+   jointDampCoef 0.01 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 2.0 // 1-x,2-y,3-z
+   jointAxis2 2.0 // 1-x,2-y,3-z
+   jointAxis1MinPos 999.0 // 999 for no min limit
+   jointAxis1MaxPos 999.0 // 999 for no max limit
+   jointAxis1Acc 1000.0
+   jointAxis1Velocity 0.0 // usually 0
+   jointAxis2Acc 100.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 1000.0 // Max bounce speed in meters/sec
+   objectFSpeed 1000.0 // Min friction speed in meters/sec
+   objectBounce 0.0
+   objectDamping 0.0 >=0, bigger=less damping
+   objectFriction 2.0
+   objectFrictionOrt 2.0
+   objectSpring 100.0
+   controlSound 0.0
+   maxSpeed 100.0
+#end liftsurface.TStrut1
+
+#begin liftsurface.TWheel
+   debug 0.0
+   breakPartName none
+   renderGroupName TWheel
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 0.0
+   dragCoef 0.0
+   inducedDragCoef 0.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 2.0 // 0, 1 ground effect, 2 joint
+   jointCreate 1.0 // 0-no, 1-create
+   jointAttachToName TStrut // "model" or liftsurface name
+   jointCreateAxis 1.0 // 0-none, 1-1axis, 2-2axis wheel, 3-2axis hinge
+   jointAxisType 0.0 // 0-rotate,1-move
+   jointPartMass 0.01 // mass in kg
+   jointPartRetractable 1.0 // this part is retractable
+   jointPartMaterial 7.0 // Values 1-12, see below
+   // 1-12 ,1=Iron,2=Wood,3=Concrete,4=Granite,5=Glass,6=Plastic,7=Rubber,8=Ice,9=Default,10=Ghost,11=Osmium,12=Sponge
+   jointSpringConst 10.1 // >0, bigger for stronger spring
+   jointDampCoef 50.0 // >0, bigger dampens better
+   jointColisionEnabled 0.0 // 0-no colision test on joint parts, 1-yes
+   jointAxis1 3.0 // 1-x,2-y,3-z
+   jointAxis2 3.0 // 1-x,2-y,3-z
+   jointAxis1MinPos 999.0 // 999 for no min limit
+   jointAxis1MaxPos 999.0 // 999 for no max limit
+   jointAxis1Acc 0.0
+   jointAxis1Velocity 0.0 // usually 0
+   jointAxis2Acc 0.0
+   jointAxis2Velocity 0.0 // usually 0
+   objectBSpeed 8.0 // Max bounce speed in meters/sec
+   objectFSpeed 10.0 // Min friction speed in meters/sec
+   objectBounce 0.099
+   objectDamping 1000.0 >=0, bigger=less damping
+   objectFriction 0.6
+   objectFrictionOrt 6.0
+   objectSpring 100.0
+   controlSound 0.0
+   maxSpeed 1.0
+#end liftsurface.TWheel
+
+#begin liftsurface.VBody1
+   debug 0.0
+   breakPartName none
+   renderGroupName VBody1
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.VBody1
+
+#begin liftsurface.VBody2
+   debug 0.0
+   breakPartName none
+   renderGroupName VBody2
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.VBody2
+
+#begin liftsurface.VBody3
+   debug 0.0
+   breakPartName none
+   renderGroupName VBody3
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.VBody3
+
+#begin liftsurface.VStab
+   debug 0.0
+   breakPartName none
+   renderGroupName VStab
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   liftCoef 1.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   thrustWashName notdefined
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   advanced 0.0 // 0, 1 ground effect, 2 joint
+#end liftsurface.VStab
+
+#begin liftsurface.wing
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   breakPartName none
+   debug 0.0
+   dragCoef 1.0
+   inducedDragCoef 1.0
+   liftCoef 1.0
+   propWashCoef 0.0
+   propWashDistanceCoef 0.4
+   renderGroupName wing
+   thrustWashName notdefined
+#end liftsurface.wing
+
+#begin mixer.FlapsMixer
+   debug 0.0
+   breakPartName none
+   input1Chanel 78.0
+   input1Name receiver1
+   input1Type receiver
+   input2Chanel 2.0
+   input2Name receiver1
+   input2Type receiver
+   linkRatio1 -0.2
+   linkRatio2 1.0
+   controlMode 0.0 0=mix,1=gear mix,2=wheel mix,3=scale mix
+#end mixer.FlapsMixer
+
+#begin motor.motor1
+   breakPartName propdisk
+   cutoffTrim 0.0
+   debug 0.0
+   driveshaft1GearRatio 2.0
+   driveshaft1OneWayBB 0.0 // 1 for one way ball bearing
+   driveshaft2GearRatio 5.0
+   driveshaft2OneWayBB 0.0 // 1 for one way ball bearing
+   driveshaft3GearRatio 1.0
+   driveshaft3OneWayBB 0.0 // 1 for one way ball bearing
+   driveshaft4GearRatio 1.0
+   driveshaft4OneWayBB 0.0 // 1 for one way ball bearing
+   engineBrakingCoef 0.04
+   inputThrotChanel 1.0
+   inputThrotName throttle
+   inputThrotType servo
+   maxRPM 6500.0
+   motorRotatingMass 0.4
+   motorRotatingMassDiam 1.0
+   motorRotatingMassDiam 1.0
+   powerCurveWatts 0.0 1000.0 1000.0 1050.0 1050.0 1010.0
+#end motor.motor1
+
+#begin propeller.Propeller1
+   airfoilDataName NACA-0009 // use: NACA-0009,NACA-0012,NACA-0015 of custom airfoil file name
+   breakPartName none
+   controlSound 1.0
+   debug 0.0
+   groundDistanceCoef 1.0 // c >=0, ground effect disappears at 1.5*prop radius*c 
+   groundDisturbanceCoef 0.0 // c>=0, normally >=1, if 0 no ground effect
+   groundLiftCoef 1.3 // >=1, 1 for no lift increase near ground
+   inputMotorDriveshaftNumber 1.0
+   inputMotorName motor1
+   inputMotorType motor
+   propAccelerationRPMStart 500.0
+   propAccelerationRotSec 500.0
+   propAccelerationTorqCoef 0.0
+   propConningCoef 0.0
+   propConningDragCoef 0.0
+   propDiamInch 14.0
+   propDirection 0.0 // 0 for CD 1 for CCD
+   propDragAdjustment 1.0
+   propInducedDragAdjustment 1.0
+   propLiftAdjustment 1.0
+   propMass 0.2
+   propMaxRPM 12000.0
+   propPitchDegree 9.043061
+   propPitchDegreeMax 9.043061
+   propPitchDegreeMin 9.043061
+   propPitchInch 7.0
+   propPrecessionForce 1.0
+   propTorqCoef 0.0
+   propWindmillAdjustment 0.1
+   renderGroupName Prop
+   renderStyle 0.0 // 0,1,2 2=force 0 style
+   translationalMaxSpeedMs 10.0
+   translationalThrustCoef 0.0
+#end propeller.Propeller1
+
+#begin receiver.receiver1
+   breakPartName none
+   debug 0.0
+   inputName transmiter1
+   inputType transmiter
+#end receiver.receiver1
+
+#begin servo.LDoorServo
+   breakPartName none
+   controlledAxisName x
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName LDoor
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 1.0
+   inputName LDoorSwitch
+   inputType switch
+   servoLinkRatio 1.72
+   servoLinkTrim 0.0
+   servoSpeed 0.2
+   servoType 1.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.LDoorServo
+
+#begin servo.LFlapServo
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName LFlap
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 87.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 0.5
+   servoLinkTrim 0.0
+   servoSpeed 2.0
+   servoSpeed1 2.0
+   servoType 9.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.LFlapServo
+
+#begin servo.LGearServo
+   breakPartName none
+   controlledAxisName x
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName LArm
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 56.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio -1.99
+   servoLinkTrim 0.0
+   servoSpeed 3.0
+   servoSpeed1 3.0
+   servoType 9.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.LGearServo
+
+#begin servo.RDoorServo
+   breakPartName none
+   controlledAxisName x
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName RDoor
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 1.0
+   inputName RDoorSwitch
+   inputType switch
+   servoLinkRatio -1.82
+   servoLinkTrim 0.0
+   servoSpeed 0.2
+   servoType 1.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.RDoorServo
+
+#begin servo.RFlapServo
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName RFlap
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 87.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 0.5
+   servoLinkTrim 0.0
+   servoSpeed 2.0
+   servoSpeed1 2.0
+   servoType 9.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.RFlapServo
+
+#begin servo.RGearServo
+   breakPartName none
+   controlledAxisName x
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName RArm
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 56.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 2.0
+   servoLinkTrim 0.0
+   servoSpeed 3.0
+   servoSpeed1 3.0
+   servoType 9.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.RGearServo
+
+#begin servo.TSteerServo
+   breakPartName none
+   controlledAxisName y
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName TStrut1
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 4.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 1.0
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 1.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.TSteerServo
+
+#begin servo.elevator
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName Elevator
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 2.0
+   inputName FlapsMixer
+   inputType mixer
+   servoLinkRatio 0.8
+   servoLinkTrim 0.0
+   servoSpeed 0.2
+   servoType 5.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.elevator
+
+#begin servo.laileron
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName LAileron
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 1.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio -1.0
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 6.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.laileron
+
+#begin servo.lwing
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName LWing
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 1.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio -0.22
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 1.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.lwing
+
+#begin servo.raileron
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName RAileron
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 1.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 1.0
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 6.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.raileron
+
+#begin servo.ruder
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName Ruder
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 4.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 1.0
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 6.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.ruder
+
+#begin servo.rwing
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName RWing
+   controlledPartType liftsurface
+   debug 0.0
+   inputChanel 1.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 0.22
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 1.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.rwing
+
+#begin servo.throttle
+   breakPartName none
+   controlledAxisName z
+   controlledPartMovement rotate // use rotate/move/input/acc 
+   controlledPartName none
+   controlledPartType none
+   debug 0.0
+   inputChanel 3.0
+   inputName receiver1
+   inputType receiver
+   servoLinkRatio 1.0
+   servoLinkTrim 0.0
+   servoSpeed 0.1
+   servoType 6.0 // 1=3pole,2=5pole,3=coreless,4=dgtl5pole,5=dgtl/crls,6=ultrafast,7and8=cycle,9=gear
+   startValue 0.0 // start position -1 to 1
+#end servo.throttle
+
+#begin switch.LDoorSwitch
+   breakPartName none
+   debug 0.0
+   inputChanel 2.0
+   inputName LGearServo
+   inputType servo
+   inverted 0.0
+   servoLinkRatio -1.96
+#end switch.LDoorSwitch
+
+#begin switch.RDoorSwitch
+   breakPartName none
+   debug 0.0
+   inputChanel 2.0
+   inputName RGearServo
+   inputType servo
+   inverted 0.0
+   servoLinkRatio 1.96
+#end switch.RDoorSwitch
+
+#begin transmiter.transmiter1
+   breakPartName none
+   debug 0.0
+   expo1 -0.4 // between -1,1 negative=smoother around center
+   expo2 0.0
+   expo3 0.0
+   expo4 -0.4
+   expo5 0.0
+   expo6 0.0
+   expo7 0.0
+   expo8 0.0
+   pitchCurveIdleUp 0.0 0.25 0.5 0.75 1.0
+   pitchCurveNormal 0.0 0.25 0.3 0.5 0.75 1.0
+   pitchCurveThrottleHold 0.0 0.25 0.5 0.75 1.0
+   rate1 1.0 // between 0 and 1 , 1=100% rate
+   rate2 1.0
+   rate3 1.0
+   rate4 1.0
+   rate5 1.0
+   rate6 1.0
+   rate7 1.0
+   rate8 1.0
+   tailPitchCurveIdleUp 0.0 0.0 0.0 0.0 0.0
+   tailPitchCurveNormal 0.0 0.0 0.0 0.0 0.0
+   tailPitchCurveThrottleHold 0.0 0.0 0.0 0.0 0.0
+   throttleCurveIdleUp -1.0 -0.5 0.0 0.5 1.0
+   throttleCurveNormal -1.0 -0.5 0.0 0.5 1.0
+   throttleCurveThrottleHold -1.0 -0.5 0.0 0.5 1.0
+   trim1 0.0 // between -1,1
+   trim2 -0.04
+   trim3 0.0
+   trim4 0.0
+   trim5 0.0
+   trim6 0.0
+   trim7 0.0
+   trim8 0.0
+   txmodel 2.0 // 0=raw tx data, 1=heli, 2=plane model
+#end transmiter.transmiter1
