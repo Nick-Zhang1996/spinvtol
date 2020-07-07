@@ -1,0 +1,31 @@
+the protocol used is explained as follows
+
+Host (PC) -> Copter
+Each package is exactly 11 Bytes long, each have predesignated purposes
+
+0,1: should both be 0x09, together they serve as alignment to indicate the start of a message
+2: message type, valid numbers are:
+  1: control update
+  2: ping request
+  3: Unrecoverable error
+The remaining 8 bytes are padding except if message type = 1, in chich case:
+3-4: Flap PWM deviation from neutral at max deflection, encoded with H, uint16_t, range (0,185)
+5-6: Throttle PWM, encoded with H, uint16_t
+5-10: control phase, the angle at which to apply max downward deflection, in rad, encoded with f, float
+
+Copter -> Host(PC)
+valid msg_type:
+#define MSG_UPDATE 1
+// ping response, remaining data in packet undefined
+#define MSG_PING 2
+
+// 8 bytes
+struct monomsg{
+    uint8_t msg_type;
+    // 1: telemetry control, 2: RC control
+    uint8_t telem_ctrl;
+    // voltage(volts) * 100
+    uint16_t voltage;
+    uint16_t flapPWM;
+    uint16_t throttlePWM;
+};
