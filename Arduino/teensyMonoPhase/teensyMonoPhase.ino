@@ -72,6 +72,7 @@
 #define VR_MIN 1099.0
 #define VR_MAX 1939.0
 
+#include <Arduino.h>
 #include <Wire.h>
 #include <Filters.h>
 #include <MatrixMath.h>
@@ -266,6 +267,9 @@ volatile float ctrl_magnitude;
 // than that we need to handle this gracefully
 volatile uint32_t remaining_delay_us;
 volatile float corrected_heading,corrected_heading_ts_us;
+volatile float rotation_speed_rads;
+volatile int remote_flap = 0;
+volatile float remote_phase;
 
 void cyclic(){
   if (remaining_delay_us!=0){
@@ -296,7 +300,7 @@ void cyclic(){
       case SERVO_MAX:
           //Serial1.println("SERVO_MAX");
           //setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,NEUTRAL_FLAP_SERVO_PULSEWIDTH, MAX_FLAP_SERVO_PULSEWIDTH));
-          setFlapServoPulseWidth(remote_flap+NEUTRAL_FLAP_SERVO_PULSEWIDTH)
+          setFlapServoPulseWidth(remote_flap+NEUTRAL_FLAP_SERVO_PULSEWIDTH);
           pending_action_cyclic = FALLING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
@@ -312,7 +316,7 @@ void cyclic(){
       case SERVO_MIN:
           //Serial1.println("SERVO_MIN");
           //setFlapServoPulseWidth(fmap(ctrl_magnitude,0.0,1.0,NEUTRAL_FLAP_SERVO_PULSEWIDTH, MIN_FLAP_SERVO_PULSEWIDTH));
-          setFlapServoPulseWidth(remote_flap-NEUTRAL_FLAP_SERVO_PULSEWIDTH)
+          setFlapServoPulseWidth(remote_flap-NEUTRAL_FLAP_SERVO_PULSEWIDTH);
           pending_action_cyclic  = RISING_NEUTRAL;
           remaining_delay_us = quarter_period;
           break;
@@ -357,14 +361,13 @@ void xbee_rssi_callback() {
 volatile bool manual_control = true;
 volatile unsigned long remote_ts = 0; // use a timestamp to monitor if up to date control msg is available
 volatile int remote_throttle = MIN_THROTTLE_SERVO_PULSEWIDTH;
-volatile int remote_flap = 0;
 volatile int remote_buffer = MIN_THROTTLE_SERVO_PULSEWIDTH;
 
 uint8_t buffer[BUFFER_SIZE] = {0};
 uint8_t buffer_index = 0;
 union{
   float val;
-  unint8_t bytes[4];
+  uint8_t bytes[4];
 } float_helper;
 
 // 8 bytes
@@ -447,7 +450,6 @@ float phase_lag, raw_phase_lag, last_phase_lag;
 // estimate speed from multiple updates
 int speed_sample_count;
 unsigned long est_speed_start_ts;
-float rotation_speed_rads;
 float last_heading,angle_traveled;
 
 // are we rotating ccw or cw
@@ -495,9 +497,9 @@ void update_mag(){
   // TODO how long is this? is it reasonable?
   if (speed_sample_count == 30){
     speed_sample_count = 0;
-    rotation_speed_rads = angle_traveled / (((float)(millis()-est_speed_start_ts))/1000.0)
+    rotation_speed_rads = angle_traveled / (((float)(millis()-est_speed_start_ts))/1000.0);
     angle_traveled = 0;
-    est_speed_start_ts = millis()
+    est_speed_start_ts = millis();
   }
 
   last_heading = corrected_heading;
@@ -583,9 +585,6 @@ void setup() {
   digitalWrite(PIN_LED4,HIGH);
   digitalWrite(PIN_FLAP_SERVO,LOW);
 
-  pinMode(synchro_pinno,OUTPUT);
-  digitalWrite(synchro_pinno,HIGH);
-
   analogWriteFrequency(PIN_FLAP_SERVO, 300);
   analogWriteFrequency(PIN_THROTTLE_SERVO, 300);
   pending_action_cyclic = RISING_NEUTRAL;
@@ -609,7 +608,6 @@ float rudder_normalized;
 // where the monocopter is pointed, this is only a visual reference for pilot
 // roll/pitch will be based on this angle
 float ref_heading;
-unsigned long last_mag_update_ts;
 void loop() {
   main_loop_hz = 1000.0/(millis()-main_loop_ts);
   main_loop_ts = millis();
@@ -694,8 +692,6 @@ void loop() {
   //block -- 
 
   //block -- magnetometer update
-  static int mag_update_freq = 10;
-  static unsigned long mag_update_ts = millis();
   // If intPin goes high, all data registers have new data
   // On interrupt, check if data ready interrupt
   if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
